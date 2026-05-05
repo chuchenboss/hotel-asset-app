@@ -82,7 +82,7 @@ export default function Assets({ properties, assets, setAssets, initialPropId })
   const [editing, setEditing]     = useState(null);
 
   const filtered = assets.filter(a => {
-    if (selProp !== 'all' && a.pid !== selProp) return false;
+    if (selProp !== 'all' && a.pid !== Number(selProp)) return false;
     if (selCat && a.category !== selCat) return false;
     if (selStatus && a.status !== selStatus) return false;
     if (search) {
@@ -192,7 +192,7 @@ export default function Assets({ properties, assets, setAssets, initialPropId })
                     </td>
                   </tr>
                 );
-              })}
+              })}	
             </tbody>
           </table>
         </div>

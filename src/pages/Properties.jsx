@@ -65,7 +65,7 @@ export default function Properties({ properties, setProperties, assets }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
         {properties.map(p => {
-          const pa = assets.filter(a => a.pid === p.id);
+          const pa = assets.filter(a => Number(a.pid) === Number(p.id));
           const val = pa.reduce((s, a) => s + (a.value || 0), 0);
           const issues = pa.filter(a => a.status !== 'Đang dùng').length;
           return (
@@ -73,7 +73,7 @@ export default function Properties({ properties, setProperties, assets }) {
               <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ width: 36, height: 36, borderRadius: 9, background: p.color + '22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: p.color }}>
-                    {p.city.slice(0, 2).toUpperCase()}
+                    (p.city || '').slice(0, 2).toUpperCase()}
                   </div>
                   <div>
                     <div style={{ fontWeight: 600, fontSize: 14 }}>{p.name}</div>

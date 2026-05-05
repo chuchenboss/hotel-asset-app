@@ -44,7 +44,10 @@ export default function App() {
           getProperties(), getAssets(), getMaintenance(), getStaff(), getInventory()
         ]);
         setPropertiesState(p);
-        setAssetsState(a);
+       setAssetsState(a.map(x => ({
+  ...x,
+  pid: Number(x.pid) // ép về number
+})));
         setMaintenanceState(m);
         setStaffState(s);
         setInventoryState(i);
