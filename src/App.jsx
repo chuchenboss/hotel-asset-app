@@ -64,7 +64,10 @@ export default function App() {
 
   // ---- Lưu lên Firebase mỗi khi dữ liệu thay đổi ----
   const setProperties = d => { setPropertiesState(d); saveProperties(d); };
-  const setAssets     = d => { setAssetsState(d);     saveAssets(d); };
+  const setAssets = async (d) => {
+  setAssetsState(d);
+  await saveAssets(d);
+};
   const setMaintenance= d => { setMaintenanceState(d);saveMaintenance(d); };
   const setStaff      = d => { setStaffState(d);      saveStaff(d); };
   const setInventory  = d => { setInventoryState(d);  saveInventory(d); };
