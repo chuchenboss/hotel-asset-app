@@ -24,7 +24,7 @@ async function saveCollection(name, data = []) {
 
   for (const item of data) {
     const id = item.id || crypto.randomUUID();
-    await setDoc(doc(ref, id), { ...item, id });
+    await setDoc(doc(ref, String(id)), { ...item, id });
   }
 }
 

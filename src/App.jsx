@@ -66,7 +66,13 @@ export default function App() {
   const setProperties = d => { setPropertiesState(d); saveProperties(d); };
   const setAssets = async (d) => {
   setAssetsState(d);
-  await saveAssets(d);
+  try {
+    await saveAssets(d);
+    console.log("Đã lưu assets lên Firebase");
+  } catch (err) {
+    console.error("Lỗi lưu Firebase:", err);
+    alert("Lỗi lưu Firebase: " + err.message);
+  }
 };
   const setMaintenance= d => { setMaintenanceState(d);saveMaintenance(d); };
   const setStaff      = d => { setStaffState(d);      saveStaff(d); };
