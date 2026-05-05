@@ -62,11 +62,6 @@ export async function migrateLocalToFirebase() {
   alert("Đã chuyển dữ liệu local lên Firebase!");
 }
 
-export { db };
-import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
-
-const db = getFirestore();
-
 // Properties
 export const getProperties = async () => {
   const snapshot = await getDocs(collection(db, "properties"));
