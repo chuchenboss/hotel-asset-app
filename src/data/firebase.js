@@ -63,3 +63,51 @@ export async function migrateLocalToFirebase() {
 }
 
 export { db };
+import { getFirestore, collection, getDocs, addDoc } from "firebase/firestore";
+
+const db = getFirestore();
+
+// Properties
+export const getProperties = async () => {
+  const snapshot = await getDocs(collection(db, "properties"));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const saveProperties = async (data) => {
+  await addDoc(collection(db, "properties"), data);
+};
+
+// Maintenance
+export const getMaintenance = async () => {
+  const snapshot = await getDocs(collection(db, "maintenance"));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const saveMaintenance = async (data) => {
+  await addDoc(collection(db, "maintenance"), data);
+};
+
+// Staff
+export const getStaff = async () => {
+  const snapshot = await getDocs(collection(db, "staff"));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const saveStaff = async (data) => {
+  await addDoc(collection(db, "staff"), data);
+};
+
+// Inventory
+export const getInventory = async () => {
+  const snapshot = await getDocs(collection(db, "inventory"));
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+};
+
+export const saveInventory = async (data) => {
+  await addDoc(collection(db, "inventory"), data);
+};
+
+// migrate
+export const migrateLocalToFirebase = async () => {
+  console.log("migrate...");
+};
