@@ -1,12 +1,5 @@
 import { initializeApp } from "firebase/app";
-import {
-  getFirestore,
-  collection,
-  getDocs,
-  setDoc,
-  doc,
-  deleteDoc
-} from "firebase/firestore";
+import { getFirestore, collection, getDocs, setDoc, doc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDyYTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
@@ -19,11 +12,11 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+export const db = getFirestore(app);
 
 async function getCollection(name) {
   const snapshot = await getDocs(collection(db, name));
-  return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
 async function saveCollection(name, data = []) {
@@ -61,48 +54,3 @@ export async function migrateLocalToFirebase() {
 
   alert("Đã chuyển dữ liệu local lên Firebase!");
 }
-
-// Properties
-export const getProperties = async () => {
-  const snapshot = await getDocs(collection(db, "properties"));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
-export const saveProperties = async (data) => {
-  await addDoc(collection(db, "properties"), data);
-};
-
-// Maintenance
-export const getMaintenance = async () => {
-  const snapshot = await getDocs(collection(db, "maintenance"));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
-export const saveMaintenance = async (data) => {
-  await addDoc(collection(db, "maintenance"), data);
-};
-
-// Staff
-export const getStaff = async () => {
-  const snapshot = await getDocs(collection(db, "staff"));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
-export const saveStaff = async (data) => {
-  await addDoc(collection(db, "staff"), data);
-};
-
-// Inventory
-export const getInventory = async () => {
-  const snapshot = await getDocs(collection(db, "inventory"));
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-};
-
-export const saveInventory = async (data) => {
-  await addDoc(collection(db, "inventory"), data);
-};
-
-// migrate
-export const migrateLocalToFirebase = async () => {
-  console.log("migrate...");
-};
