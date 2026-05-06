@@ -1,5 +1,3 @@
-// src/App.jsx — Firebase + Login, giữ nguyên UI cũ
-
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -52,7 +50,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     async function loadAll() {
       setLoading(true);
@@ -66,16 +67,22 @@ export default function App() {
           getInventory(),
         ]);
 
-        setPropertiesState(p);
-        setAssetsState(
-          a.map(x => ({
-            ...x,
-            pid: x.pid ? Number(x.pid) : x.pid,
-          }))
-        );
-        setMaintenanceState(m);
-        setStaffState(s);
-        setInventoryState(i);
+        setPropertiesState(p || []);
+
+        setAssetsState((a || []).map(x => ({
+          ...x,
+          pid: x.pid ? Number(x.pid) : x.pid,
+        })));
+
+        setMaintenanceState(m || []);
+        setStaffState((s || []).map(x => ({
+          ...x,
+          pid: x.pid ? Number(x.pid) : x.pid,
+        })));
+        setInventoryState((i || []).map(x => ({
+          ...x,
+          pid: x.pid ? Number(x.pid) : x.pid,
+        })));
       } catch (err) {
         console.error('Load Firebase lỗi:', err);
         alert('Không tải được dữ liệu Firebase: ' + err.message);
@@ -86,6 +93,10 @@ export default function App() {
 
     loadAll();
   }, [user]);
+
+  const currentUser = staff.find(s =>
+    String(s.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
+  );
 
   const setProperties = async (d) => {
     setPropertiesState(d);
@@ -124,9 +135,15 @@ export default function App() {
   };
 
   const setStaff = async (d) => {
-    setStaffState(d);
+    const cleanData = d.map(x => ({
+      ...x,
+      pid: x.pid ? Number(x.pid) : x.pid,
+    }));
+
+    setStaffState(cleanData);
+
     try {
-      await saveStaff(d);
+      await saveStaff(cleanData);
     } catch (err) {
       console.error('Lỗi lưu staff:', err);
       alert('Lỗi lưu nhân viên: ' + err.message);
@@ -134,9 +151,15 @@ export default function App() {
   };
 
   const setInventory = async (d) => {
-    setInventoryState(d);
+    const cleanData = d.map(x => ({
+      ...x,
+      pid: x.pid ? Number(x.pid) : x.pid,
+    }));
+
+    setInventoryState(cleanData);
+
     try {
-      await saveInventory(d);
+      await saveInventory(cleanData);
     } catch (err) {
       console.error('Lỗi lưu inventory:', err);
       alert('Lỗi lưu kho vật tư: ' + err.message);
@@ -159,31 +182,86 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case 'overview':
-        return <Overview properties={properties} assets={assets} maintenance={maintenance} />;
+        return (
+          <Overview
+            properties={properties}
+            assets={assets}
+            maintenance={maintenance}
+          />
+        );
 
       case 'properties':
-        return <Properties properties={properties} setProperties={setProperties} assets={assets} />;
+        return (
+          <Properties
+            properties={properties}
+            setProperties={setProperties}
+            assets={assets}
+          />
+        );
 
       case 'assets':
-        return <Assets properties={properties} assets={assets} setAssets={setAssets} initialPropId={initPropId} />;
+        return (
+          <Assets
+            properties={properties}
+            assets={assets}
+            setAssets={setAssets}
+            initialPropId={initPropId}
+          />
+        );
 
       case 'aircon':
-        return <AirCon properties={properties} />;
+        return (
+          <AirCon
+            properties={properties}
+          />
+        );
 
       case 'maintenance':
-        return <Maintenance properties={properties} assets={assets} maintenance={maintenance} setMaintenance={setMaintenance} />;
+        return (
+          <Maintenance
+            properties={properties}
+            assets={assets}
+            maintenance={maintenance}
+            setMaintenance={setMaintenance}
+          />
+        );
 
       case 'depreciation':
-        return <Depreciation properties={properties} assets={assets} />;
+        return (
+          <Depreciation
+            properties={properties}
+            assets={assets}
+          />
+        );
 
       case 'inventory':
-        return <Inventory properties={properties} inventory={inventory} setInventory={setInventory} />;
+        return (
+          <Inventory
+            properties={properties}
+            inventory={inventory}
+            setInventory={setInventory}
+          />
+        );
 
       case 'staff':
-        return <Staff properties={properties} staff={staff} setStaff={setStaff} />;
+        return (
+          <Staff
+            properties={properties}
+            staff={staff}
+            setStaff={setStaff}
+            currentUser={currentUser}
+          />
+        );
 
       case 'settings':
-        return <Settings maintenance={maintenance} properties={properties} staff={staff} onMigrate={migrateLocalToFirebase} />;
+        return (
+          <Settings
+            maintenance={maintenance}
+            properties={properties}
+            staff={staff}
+            onMigrate={migrateLocalToFirebase}
+          />
+        );
 
       default:
         return null;
@@ -235,7 +313,12 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Sidebar page={page} onNavigate={navigate} properties={properties} alerts={urgentAlerts} />
+      <Sidebar
+        page={page}
+        onNavigate={navigate}
+        properties={properties}
+        alerts={urgentAlerts}
+      />
 
       <div className="main">
         <div className="topbar">
@@ -286,7 +369,9 @@ export default function App() {
           </div>
         </div>
 
-        <div className="content">{renderPage()}</div>
+        <div className="content">
+          {renderPage()}
+        </div>
       </div>
     </div>
   );

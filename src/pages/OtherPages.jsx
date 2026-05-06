@@ -183,11 +183,12 @@ export function Depreciation({ properties, assets }) {
 }
 
 // ---- STAFF FORM ----
-function StaffForm({ initial, properties, onSave, onClose }) {
+function StaffForm({ initial, properties, onSave, onClose, canManageStaff }) {
   const { t } = useTranslation();
 
   const STAFF_ROLES = [
     'CEO',
+    'Tổng quản lý',
     'Quản lý khách sạn',
     'Giám sát',
     'Kế toán',
@@ -213,7 +214,7 @@ function StaffForm({ initial, properties, onSave, onClose }) {
 
   const PERMISSION_OPTIONS = [
     { value: 'system_admin', label: 'Toàn bộ hệ thống' },
-    { value: 'admin', label: 'Quản trị hệ thống' },
+    { value: 'admin', label: 'Tổng quản lý' },
     { value: 'manager', label: 'Quản lý cơ sở' },
     { value: 'staff', label: 'Nhân viên' },
     { value: 'viewer', label: 'Chỉ xem' },
@@ -222,12 +223,12 @@ function StaffForm({ initial, properties, onSave, onClose }) {
   const [form, setForm] = useState(initial || {
     pid: properties[0]?.id || '',
     name: '',
-    role: 'CEO',
-    dept: 'Ban Giám Đốc',
+    role: 'Nhân viên',
+    dept: 'Vận hành',
     email: '',
     password: '',
     status: 'Hoạt động',
-    permission: 'system_admin'
+    permission: 'staff'
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -235,60 +236,31 @@ function StaffForm({ initial, properties, onSave, onClose }) {
   return (
     <div>
       <Field label={t('common.branch')}>
-        <select
-          className="select"
-          value={form.pid}
-          onChange={e => set('pid', parseInt(e.target.value))}
-        >
-          {properties.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
-          ))}
+        <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
+          {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </Field>
 
       <Field label={t('staff.fullName')}>
-        <input
-          className="input"
-          value={form.name}
-          onChange={e => set('name', e.target.value)}
-          placeholder={t('staff.namePlaceholder')}
-        />
+        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('staff.namePlaceholder')} />
       </Field>
 
       <div className="form-row">
         <Field label={t('staff.role')}>
-          <select
-            className="select"
-            value={form.role}
-            onChange={e => set('role', e.target.value)}
-          >
-            {STAFF_ROLES.map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
+          <select className="select" value={form.role} onChange={e => set('role', e.target.value)}>
+            {STAFF_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
         </Field>
 
         <Field label={t('staff.department')}>
-          <select
-            className="select"
-            value={form.dept}
-            onChange={e => set('dept', e.target.value)}
-          >
-            {DEPARTMENTS.map(d => (
-              <option key={d} value={d}>{d}</option>
-            ))}
+          <select className="select" value={form.dept} onChange={e => set('dept', e.target.value)}>
+            {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         </Field>
       </div>
 
       <Field label={t('common.email')}>
-        <input
-          className="input"
-          type="email"
-          value={form.email}
-          onChange={e => set('email', e.target.value)}
-          placeholder={t('staff.emailPlaceholder')}
-        />
+        <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder={t('staff.emailPlaceholder')} />
       </Field>
 
       {!initial?.id && (
@@ -308,20 +280,15 @@ function StaffForm({ initial, properties, onSave, onClose }) {
           <select
             className="select"
             value={form.permission}
+            disabled={!canManageStaff}
             onChange={e => set('permission', e.target.value)}
           >
-            {PERMISSION_OPTIONS.map(p => (
-              <option key={p.value} value={p.value}>{p.label}</option>
-            ))}
+            {PERMISSION_OPTIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </Field>
 
         <Field label={t('common.status')}>
-          <select
-            className="select"
-            value={form.status}
-            onChange={e => set('status', e.target.value)}
-          >
+          <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
             <option value="Hoạt động">{t('staff.statuses.active')}</option>
             <option value="Nghỉ phép">{t('staff.statuses.onLeave')}</option>
             <option value="Tạm nghỉ">{t('staff.statuses.inactive')}</option>
@@ -331,39 +298,38 @@ function StaffForm({ initial, properties, onSave, onClose }) {
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            if (!form.name.trim()) return alert('Vui lòng nhập họ tên');
-            if (!form.email.trim()) return alert('Vui lòng nhập email');
-
-            if (!initial?.id && (!form.password || form.password.length < 6)) {
-              return alert('Mật khẩu phải tối thiểu 6 ký tự');
-            }
-
-            onSave(form);
-          }}
-        >
-          {t('common.save')}
-        </button>
+        <button className="btn btn-primary" onClick={() => {
+          if (!form.name.trim()) return alert('Vui lòng nhập họ tên');
+          if (!form.email.trim()) return alert('Vui lòng nhập email');
+          if (!initial?.id && (!form.password || form.password.length < 6)) return alert('Mật khẩu phải tối thiểu 6 ký tự');
+          onSave(form);
+        }}>{t('common.save')}</button>
       </div>
     </div>
   );
 }
 
 // ---- STAFF ----
-export function Staff({ properties, staff, setStaff }) {
+export function Staff({ properties, staff, setStaff, currentUser }) {
   const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+
+  const canManageStaff =
+    currentUser?.permission === 'system_admin' ||
+    currentUser?.permission === 'admin';
 
   const filtered = selProp === 'all'
     ? staff
     : staff.filter(s => Number(s.pid) === Number(selProp));
 
   const handleSave = async (form) => {
+    if (!canManageStaff) {
+      alert('Bạn không có quyền thêm hoặc phân quyền nhân viên');
+      return;
+    }
+
     try {
       let uid = form.uid || '';
 
@@ -375,7 +341,6 @@ export function Staff({ properties, staff, setStaff }) {
         ...form,
         uid,
         pid: Number(form.pid),
-        password: undefined,
       };
 
       delete cleanForm.password;
@@ -404,192 +369,90 @@ export function Staff({ properties, staff, setStaff }) {
 
   const PERM_CHIP = {
     system_admin: <span className="chip chip-blue">Toàn bộ hệ thống</span>,
-    admin: <span className="chip chip-blue">{t('staff.permissions.admin')}</span>,
-    manager: <span className="chip chip-purple">{t('staff.permissions.manager')}</span>,
-    staff: <span className="chip chip-green">{t('staff.permissions.staff')}</span>,
-    viewer: <span className="chip chip-gray">{t('staff.permissions.viewer')}</span>,
+    admin: <span className="chip chip-blue">Tổng quản lý</span>,
+    manager: <span className="chip chip-purple">Quản lý cơ sở</span>,
+    staff: <span className="chip chip-green">Nhân viên</span>,
+    viewer: <span className="chip chip-gray">Chỉ xem</span>,
   };
 
   return (
     <div>
       <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
-
       <div className="stats-grid">
-        <div className="stat-card">
-          <div className="stat-label">{t('staff.totalStaff')}</div>
-          <div className="stat-value">{filtered.length}</div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">{t('staff.working')}</div>
-          <div className="stat-value" style={{ color: 'var(--green)' }}>
-            {filtered.filter(s => s.status === 'Hoạt động' || s.status === 'Active').length}
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">{t('staff.onLeave')}</div>
-          <div className="stat-value" style={{ color: 'var(--amber)' }}>
-            {filtered.filter(s => s.status !== 'Hoạt động' && s.status !== 'Active').length}
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-label">{t('staff.branches')}</div>
-          <div className="stat-value">{selProp === 'all' ? properties.length : 1}</div>
-        </div>
+        <div className="stat-card"><div className="stat-label">{t('staff.totalStaff')}</div><div className="stat-value">{filtered.length}</div></div>
+        <div className="stat-card"><div className="stat-label">{t('staff.working')}</div><div className="stat-value" style={{ color: 'var(--green)' }}>{filtered.filter(s => s.status === 'Hoạt động' || s.status === 'Active').length}</div></div>
+        <div className="stat-card"><div className="stat-label">{t('staff.onLeave')}</div><div className="stat-value" style={{ color: 'var(--amber)' }}>{filtered.filter(s => s.status !== 'Hoạt động' && s.status !== 'Active').length}</div></div>
+        <div className="stat-card"><div className="stat-label">{t('staff.branches')}</div><div className="stat-value">{selProp === 'all' ? properties.length : 1}</div></div>
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <span className="panel-title">{t('nav.staff')}</span>
-
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setEditing(null);
-              setShowForm(true);
-            }}
-          >
-            <Plus size={14} /> {t('staff.add')}
-          </button>
+          {canManageStaff && (
+            <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+              <Plus size={14} /> {t('staff.add')}
+            </button>
+          )}
         </div>
-
         <div className="table-wrap">
           <table>
-            <thead>
-              <tr>
-                <th>{t('common.branch')}</th>
-                <th>{t('common.name')}</th>
-                <th>{t('staff.role')}</th>
-                <th>{t('staff.department')}</th>
-                <th>{t('common.email')}</th>
-                <th>{t('staff.permission')}</th>
-                <th>{t('common.status')}</th>
-                <th></th>
-              </tr>
-            </thead>
-
+            <thead><tr>
+              <th>{t('common.branch')}</th><th>{t('common.name')}</th>
+              <th>{t('staff.role')}</th><th>{t('staff.department')}</th>
+              <th>{t('common.email')}</th><th>{t('staff.permission')}</th>
+              <th>{t('common.status')}</th><th></th>
+            </tr></thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>
-                    {t('staff.noStaff')}
-                  </td>
-                </tr>
+                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>{t('staff.noStaff')}</td></tr>
               ) : filtered.map(s => {
                 const p = properties.find(x => Number(x.id) === Number(s.pid));
-                const initials = s.name
-                  ? s.name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase()
-                  : '?';
-
+                const initials = s.name ? s.name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() : '?';
                 const propColor = p?.color || '#1D9E75';
-
-                return (
-                  <tr key={s.id}>
-                    <td>
-                      {p && (
-                        <span style={{
-                          fontSize: 11,
-                          padding: '2px 7px',
-                          borderRadius: 20,
-                          background: propColor + '22',
-                          color: propColor,
-                          fontWeight: 500
-                        }}>
-                          {p.city}
-                        </span>
-                      )}
-                    </td>
-
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          background: propColor + '22',
-                          color: propColor,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          flexShrink: 0
-                        }}>
-                          {initials}
-                        </div>
-
-                        <span style={{ fontWeight: 500 }}>{s.name}</span>
-                      </div>
-                    </td>
-
-                    <td style={{ fontSize: 12 }}>{s.role}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.dept}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.email}</td>
-                    <td>{PERM_CHIP[s.permission] || <span className="chip chip-gray">{s.permission}</span>}</td>
-
-                    <td>
-                      <span className={`chip ${s.status === 'Hoạt động' || s.status === 'Active' ? 'chip-green' : 'chip-gray'}`}>
-                        {s.status}
-                      </span>
-                    </td>
-
-                    <td>
+                return <tr key={s.id}>
+                  <td>{p && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: propColor + '22', color: propColor, fontWeight: 500 }}>{p.city}</span>}</td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: propColor + '22', color: propColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{initials}</div>
+                      <span style={{ fontWeight: 500 }}>{s.name}</span>
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 12 }}>{s.role}</td>
+                  <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.dept}</td>
+                  <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.email}</td>
+                  <td>{PERM_CHIP[s.permission] || <span className="chip chip-gray">{s.permission}</span>}</td>
+                  <td><span className={`chip ${s.status === 'Hoạt động' || s.status === 'Active' ? 'chip-green' : 'chip-gray'}`}>{s.status}</span></td>
+                  <td>
+                    {canManageStaff && (
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          className="btn btn-sm btn-icon"
-                          onClick={() => {
-                            setEditing(s);
-                            setShowForm(true);
-                          }}
-                        >
-                          <Pencil size={12} />
-                        </button>
-
-                        <button
-                          className="btn btn-sm btn-icon btn-danger"
-                          onClick={() => {
-                            if (confirm(t('staff.deleteConfirm') + ' ' + s.name + '?')) {
-                              setStaff(staff.filter(x => x.id !== s.id));
-                            }
-                          }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        <button className="btn btn-sm btn-icon" onClick={() => { setEditing(s); setShowForm(true); }}><Pencil size={12} /></button>
+                        <button className="btn btn-sm btn-icon btn-danger" onClick={() => { if (confirm(t('staff.deleteConfirm') + ' ' + s.name + '?')) setStaff(staff.filter(x => x.id !== s.id)); }}><Trash2 size={12} /></button>
                       </div>
-                    </td>
-                  </tr>
-                );
+                    )}
+                  </td>
+                </tr>;
               })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {showForm && (
-        <Modal
-          title={editing?.id ? t('staff.edit') : t('staff.addNew')}
-          onClose={() => {
-            setShowForm(false);
-            setEditing(null);
-          }}
-          footer={null}
-        >
+      {showForm && canManageStaff && (
+        <Modal title={editing?.id ? t('staff.edit') : t('staff.addNew')} onClose={() => { setShowForm(false); setEditing(null); }} footer={null}>
           <StaffForm
             initial={editing}
             properties={properties}
             onSave={handleSave}
-            onClose={() => {
-              setShowForm(false);
-              setEditing(null);
-            }}
+            onClose={() => { setShowForm(false); setEditing(null); }}
+            canManageStaff={canManageStaff}
           />
         </Modal>
       )}
     </div>
   );
-}// ---- INVENTORY FORM ----
+}
+
+// ---- INVENTORY FORM ----
 function InventoryForm({ initial, properties, onSave, onClose }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(initial || {
