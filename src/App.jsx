@@ -3,7 +3,6 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./data/firebase.js";
 import Login from "./Login.jsx";
 
-import "./App.css";
 
 // import các function Firebase
 import {
