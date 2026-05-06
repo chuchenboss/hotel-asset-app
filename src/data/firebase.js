@@ -3,7 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, setDoc, doc } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDyYTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
+  apiKey: "AIzaSyDYyTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
   authDomain: "hotel-asset-app.firebaseapp.com",
   projectId: "hotel-asset-app",
   storageBucket: "hotel-asset-app.firebasestorage.app",
