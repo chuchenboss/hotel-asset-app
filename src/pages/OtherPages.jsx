@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Modal, Field, PropFilterBar, UrgencyChip, StatusChip } from '../components/UI.jsx';
 import { URGENCIES, MAINT_STATUSES, ROLES, PERMISSIONS } from '../data/store.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { createStaffLogin } from '../data/firebase.js';
 
 // ---- MAINTENANCE ----
 function MaintForm({ initial, properties, assets, onSave, onClose }) {
@@ -184,54 +185,168 @@ export function Depreciation({ properties, assets }) {
 // ---- STAFF FORM ----
 function StaffForm({ initial, properties, onSave, onClose }) {
   const { t } = useTranslation();
+
+  const STAFF_ROLES = [
+    'CEO',
+    'Quản lý khách sạn',
+    'Giám sát',
+    'Kế toán',
+    'Kỹ thuật',
+    'Lễ tân',
+    'Buồng phòng',
+    'Bảo vệ',
+    'Nhân viên'
+  ];
+
+  const DEPARTMENTS = [
+    'Ban Giám Đốc',
+    'CEO',
+    'Quản lý',
+    'Kế toán',
+    'Kỹ thuật',
+    'Lễ tân',
+    'Buồng phòng',
+    'Bảo vệ',
+    'Vận hành',
+    'Khác'
+  ];
+
+  const PERMISSION_OPTIONS = [
+    { value: 'system_admin', label: 'Toàn bộ hệ thống' },
+    { value: 'admin', label: 'Quản trị hệ thống' },
+    { value: 'manager', label: 'Quản lý cơ sở' },
+    { value: 'staff', label: 'Nhân viên' },
+    { value: 'viewer', label: 'Chỉ xem' },
+  ];
+
   const [form, setForm] = useState(initial || {
-    pid: properties[0]?.id || '', name: '', role: ROLES[0],
-    dept: '', email: '', status: 'Hoạt động', permission: 'staff'
+    pid: properties[0]?.id || '',
+    name: '',
+    role: 'CEO',
+    dept: 'Ban Giám Đốc',
+    email: '',
+    password: '',
+    status: 'Hoạt động',
+    permission: 'system_admin'
   });
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
   return (
     <div>
       <Field label={t('common.branch')}>
-        <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
-          {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select
+          className="select"
+          value={form.pid}
+          onChange={e => set('pid', parseInt(e.target.value))}
+        >
+          {properties.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
         </select>
       </Field>
+
       <Field label={t('staff.fullName')}>
-        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('staff.namePlaceholder')} />
+        <input
+          className="input"
+          value={form.name}
+          onChange={e => set('name', e.target.value)}
+          placeholder={t('staff.namePlaceholder')}
+        />
       </Field>
+
       <div className="form-row">
         <Field label={t('staff.role')}>
-          <select className="select" value={form.role} onChange={e => set('role', e.target.value)}>
-            {ROLES.map(r => <option key={r}>{r}</option>)}
+          <select
+            className="select"
+            value={form.role}
+            onChange={e => set('role', e.target.value)}
+          >
+            {STAFF_ROLES.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
           </select>
         </Field>
+
         <Field label={t('staff.department')}>
-          <input className="input" value={form.dept} onChange={e => set('dept', e.target.value)} placeholder={t('staff.deptPlaceholder')} />
+          <select
+            className="select"
+            value={form.dept}
+            onChange={e => set('dept', e.target.value)}
+          >
+            {DEPARTMENTS.map(d => (
+              <option key={d} value={d}>{d}</option>
+            ))}
+          </select>
         </Field>
       </div>
+
       <Field label={t('common.email')}>
-        <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder={t('staff.emailPlaceholder')} />
+        <input
+          className="input"
+          type="email"
+          value={form.email}
+          onChange={e => set('email', e.target.value)}
+          placeholder={t('staff.emailPlaceholder')}
+        />
       </Field>
+
+      {!initial?.id && (
+        <Field label="Mật khẩu đăng nhập">
+          <input
+            className="input"
+            type="password"
+            value={form.password || ''}
+            onChange={e => set('password', e.target.value)}
+            placeholder="Tối thiểu 6 ký tự"
+          />
+        </Field>
+      )}
+
       <div className="form-row">
         <Field label={t('staff.permission')}>
-          <select className="select" value={form.permission} onChange={e => set('permission', e.target.value)}>
-            {PERMISSIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          <select
+            className="select"
+            value={form.permission}
+            onChange={e => set('permission', e.target.value)}
+          >
+            {PERMISSION_OPTIONS.map(p => (
+              <option key={p.value} value={p.value}>{p.label}</option>
+            ))}
           </select>
         </Field>
+
         <Field label={t('common.status')}>
-          <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
+          <select
+            className="select"
+            value={form.status}
+            onChange={e => set('status', e.target.value)}
+          >
             <option value="Hoạt động">{t('staff.statuses.active')}</option>
             <option value="Nghỉ phép">{t('staff.statuses.onLeave')}</option>
             <option value="Tạm nghỉ">{t('staff.statuses.inactive')}</option>
           </select>
         </Field>
       </div>
+
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
         <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-        <button className="btn btn-primary" onClick={() => {
-          if (!form.name.trim()) return alert(t('staff.fullName'));
-          onSave(form);
-        }}>{t('common.save')}</button>
+
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            if (!form.name.trim()) return alert('Vui lòng nhập họ tên');
+            if (!form.email.trim()) return alert('Vui lòng nhập email');
+
+            if (!initial?.id && (!form.password || form.password.length < 6)) {
+              return alert('Mật khẩu phải tối thiểu 6 ký tự');
+            }
+
+            onSave(form);
+          }}
+        >
+          {t('common.save')}
+        </button>
       </div>
     </div>
   );
@@ -242,72 +357,210 @@ export function Staff({ properties, staff, setStaff }) {
   const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing]   = useState(null);
-  const filtered = selProp === 'all' ? staff : staff.filter(s => s.pid === selProp);
+  const [editing, setEditing] = useState(null);
 
-  const handleSave = (form) => {
-    if (editing) setStaff(staff.map(s => s.id === editing.id ? { ...editing, ...form } : s));
-    else setStaff([...staff, { ...form, id: Date.now() }]);
-    setShowForm(false); setEditing(null);
+  const filtered = selProp === 'all'
+    ? staff
+    : staff.filter(s => Number(s.pid) === Number(selProp));
+
+  const handleSave = async (form) => {
+    try {
+      let uid = form.uid || '';
+
+      if (!editing && form.email && form.password) {
+        uid = await createStaffLogin(form.email.trim(), form.password);
+      }
+
+      const cleanForm = {
+        ...form,
+        uid,
+        pid: Number(form.pid),
+        password: undefined,
+      };
+
+      delete cleanForm.password;
+
+      if (editing) {
+        setStaff(staff.map(s =>
+          s.id === editing.id ? { ...editing, ...cleanForm } : s
+        ));
+      } else {
+        setStaff([
+          ...staff,
+          {
+            ...cleanForm,
+            id: Date.now().toString(),
+          }
+        ]);
+      }
+
+      setShowForm(false);
+      setEditing(null);
+    } catch (err) {
+      console.error('Lỗi tạo tài khoản nhân viên:', err);
+      alert('Lỗi tạo tài khoản nhân viên: ' + err.message);
+    }
   };
 
   const PERM_CHIP = {
-    admin:   <span className="chip chip-blue">{t('staff.permissions.admin')}</span>,
+    system_admin: <span className="chip chip-blue">Toàn bộ hệ thống</span>,
+    admin: <span className="chip chip-blue">{t('staff.permissions.admin')}</span>,
     manager: <span className="chip chip-purple">{t('staff.permissions.manager')}</span>,
-    staff:   <span className="chip chip-green">{t('staff.permissions.staff')}</span>,
-    viewer:  <span className="chip chip-gray">{t('staff.permissions.viewer')}</span>,
+    staff: <span className="chip chip-green">{t('staff.permissions.staff')}</span>,
+    viewer: <span className="chip chip-gray">{t('staff.permissions.viewer')}</span>,
   };
 
   return (
     <div>
       <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
+
       <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">{t('staff.totalStaff')}</div><div className="stat-value">{filtered.length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('staff.working')}</div><div className="stat-value" style={{ color: 'var(--green)' }}>{filtered.filter(s => s.status === 'Hoạt động' || s.status === 'Active').length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('staff.onLeave')}</div><div className="stat-value" style={{ color: 'var(--amber)' }}>{filtered.filter(s => s.status !== 'Hoạt động' && s.status !== 'Active').length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('staff.branches')}</div><div className="stat-value">{selProp === 'all' ? properties.length : 1}</div></div>
+        <div className="stat-card">
+          <div className="stat-label">{t('staff.totalStaff')}</div>
+          <div className="stat-value">{filtered.length}</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">{t('staff.working')}</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>
+            {filtered.filter(s => s.status === 'Hoạt động' || s.status === 'Active').length}
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">{t('staff.onLeave')}</div>
+          <div className="stat-value" style={{ color: 'var(--amber)' }}>
+            {filtered.filter(s => s.status !== 'Hoạt động' && s.status !== 'Active').length}
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">{t('staff.branches')}</div>
+          <div className="stat-value">{selProp === 'all' ? properties.length : 1}</div>
+        </div>
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <span className="panel-title">{t('nav.staff')}</span>
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setEditing(null);
+              setShowForm(true);
+            }}
+          >
             <Plus size={14} /> {t('staff.add')}
           </button>
         </div>
+
         <div className="table-wrap">
           <table>
-            <thead><tr>
-              <th>{t('common.branch')}</th><th>{t('common.name')}</th>
-              <th>{t('staff.role')}</th><th>{t('staff.department')}</th>
-              <th>{t('common.email')}</th><th>{t('staff.permission')}</th>
-              <th>{t('common.status')}</th><th></th>
-            </tr></thead>
+            <thead>
+              <tr>
+                <th>{t('common.branch')}</th>
+                <th>{t('common.name')}</th>
+                <th>{t('staff.role')}</th>
+                <th>{t('staff.department')}</th>
+                <th>{t('common.email')}</th>
+                <th>{t('staff.permission')}</th>
+                <th>{t('common.status')}</th>
+                <th></th>
+              </tr>
+            </thead>
+
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>{t('staff.noStaff')}</td></tr>
-              ) : filtered.map(s => {
-                const p = properties.find(x => x.id === s.pid);
-                const initials  = s.name ? s.name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() : '?';
-                const propColor = p?.color || '#1D9E75';
-                return <tr key={s.id}>
-                  <td>{p && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: propColor + '22', color: propColor, fontWeight: 500 }}>{p.city}</span>}</td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: propColor + '22', color: propColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>{initials}</div>
-                      <span style={{ fontWeight: 500 }}>{s.name}</span>
-                    </div>
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>
+                    {t('staff.noStaff')}
                   </td>
-                  <td style={{ fontSize: 12 }}>{s.role}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.dept}</td>
-                  <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.email}</td>
-                  <td>{PERM_CHIP[s.permission] || <span className="chip chip-gray">{s.permission}</span>}</td>
-                  <td><span className={`chip ${s.status === 'Hoạt động' || s.status === 'Active' ? 'chip-green' : 'chip-gray'}`}>{s.status}</span></td>
-                  <td><div style={{ display: 'flex', gap: 4 }}>
-                    <button className="btn btn-sm btn-icon" onClick={() => { setEditing(s); setShowForm(true); }}><Pencil size={12} /></button>
-                    <button className="btn btn-sm btn-icon btn-danger" onClick={() => { if (confirm(t('staff.deleteConfirm') + ' ' + s.name + '?')) setStaff(staff.filter(x => x.id !== s.id)); }}><Trash2 size={12} /></button>
-                  </div></td>
-                </tr>;
+                </tr>
+              ) : filtered.map(s => {
+                const p = properties.find(x => Number(x.id) === Number(s.pid));
+                const initials = s.name
+                  ? s.name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase()
+                  : '?';
+
+                const propColor = p?.color || '#1D9E75';
+
+                return (
+                  <tr key={s.id}>
+                    <td>
+                      {p && (
+                        <span style={{
+                          fontSize: 11,
+                          padding: '2px 7px',
+                          borderRadius: 20,
+                          background: propColor + '22',
+                          color: propColor,
+                          fontWeight: 500
+                        }}>
+                          {p.city}
+                        </span>
+                      )}
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          background: propColor + '22',
+                          color: propColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          flexShrink: 0
+                        }}>
+                          {initials}
+                        </div>
+
+                        <span style={{ fontWeight: 500 }}>{s.name}</span>
+                      </div>
+                    </td>
+
+                    <td style={{ fontSize: 12 }}>{s.role}</td>
+                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.dept}</td>
+                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.email}</td>
+                    <td>{PERM_CHIP[s.permission] || <span className="chip chip-gray">{s.permission}</span>}</td>
+
+                    <td>
+                      <span className={`chip ${s.status === 'Hoạt động' || s.status === 'Active' ? 'chip-green' : 'chip-gray'}`}>
+                        {s.status}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button
+                          className="btn btn-sm btn-icon"
+                          onClick={() => {
+                            setEditing(s);
+                            setShowForm(true);
+                          }}
+                        >
+                          <Pencil size={12} />
+                        </button>
+
+                        <button
+                          className="btn btn-sm btn-icon btn-danger"
+                          onClick={() => {
+                            if (confirm(t('staff.deleteConfirm') + ' ' + s.name + '?')) {
+                              setStaff(staff.filter(x => x.id !== s.id));
+                            }
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
               })}
             </tbody>
           </table>
@@ -315,15 +568,28 @@ export function Staff({ properties, staff, setStaff }) {
       </div>
 
       {showForm && (
-        <Modal title={editing?.id ? t('staff.edit') : t('staff.addNew')} onClose={() => { setShowForm(false); setEditing(null); }} footer={null}>
-          <StaffForm initial={editing} properties={properties} onSave={handleSave} onClose={() => { setShowForm(false); setEditing(null); }} />
+        <Modal
+          title={editing?.id ? t('staff.edit') : t('staff.addNew')}
+          onClose={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
+          footer={null}
+        >
+          <StaffForm
+            initial={editing}
+            properties={properties}
+            onSave={handleSave}
+            onClose={() => {
+              setShowForm(false);
+              setEditing(null);
+            }}
+          />
         </Modal>
       )}
     </div>
   );
-}
-
-// ---- INVENTORY FORM ----
+}// ---- INVENTORY FORM ----
 function InventoryForm({ initial, properties, onSave, onClose }) {
   const { t } = useTranslation();
   const [form, setForm] = useState(initial || {
