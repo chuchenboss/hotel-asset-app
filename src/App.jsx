@@ -1,29 +1,50 @@
-import { useEffect, useState } from "react";
-import "./index.css";
+// src/App.jsx — Firebase + Login, giữ nguyên UI cũ
 
-import Login from "./Login";
+import { useState, useEffect } from 'react';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+
+import Sidebar from './components/Sidebar.jsx';
+import ExportButton from './components/ExportButton.jsx';
+import Overview from './pages/Overview.jsx';
+import Properties from './pages/Properties.jsx';
+import Assets from './pages/Assets.jsx';
+import AirCon from './pages/AirCon.jsx';
+import Settings from './pages/Settings.jsx';
+import { Maintenance, Depreciation, Staff, Inventory } from './pages/OtherPages.jsx';
+
+import Login from './Login.jsx';
 
 import {
-  onAuthStateChanged,
-  signOut
-} from "firebase/auth";
+  auth,
+  getProperties, saveProperties,
+  getAssets, saveAssets,
+  getMaintenance, saveMaintenance,
+  getStaff, saveStaff,
+  getInventory, saveInventory,
+  migrateLocalToFirebase,
+} from './data/firebase.js';
 
-import { auth } from "./data/firebase";
+import { useTranslation } from './i18n/useTranslation.jsx';
 
 export default function App() {
+  const [page, setPage] = useState('overview');
+  const [initPropId, setInitPropId] = useState(null);
+
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [loading, setLoading] = useState(true);
 
-  const [properties, setProperties] = useState(() => {
-    const saved = localStorage.getItem("properties");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const { t } = useTranslation();
 
-  const [newProperty, setNewProperty] = useState("");
+  const [properties, setPropertiesState] = useState([]);
+  const [assets, setAssetsState] = useState([]);
+  const [maintenance, setMaintenanceState] = useState([]);
+  const [staff, setStaffState] = useState([]);
+  const [inventory, setInventoryState] = useState([]);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
+    const unsub = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
       setCheckingAuth(false);
     });
 
@@ -31,282 +52,241 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(
-      "properties",
-      JSON.stringify(properties)
-    );
-  }, [properties]);
+    if (!user) return;
 
-  const addProperty = () => {
-    if (!newProperty.trim()) return;
+    async function loadAll() {
+      setLoading(true);
 
-    setProperties([
-      ...properties,
-      {
-        id: Date.now().toString(),
-        name: newProperty,
-        city: "Hồ Chí Minh",
-        type: "5 sao",
-      },
-    ]);
+      try {
+        const [p, a, m, s, i] = await Promise.all([
+          getProperties(),
+          getAssets(),
+          getMaintenance(),
+          getStaff(),
+          getInventory(),
+        ]);
 
-    setNewProperty("");
+        setPropertiesState(p);
+        setAssetsState(
+          a.map(x => ({
+            ...x,
+            pid: x.pid ? Number(x.pid) : x.pid,
+          }))
+        );
+        setMaintenanceState(m);
+        setStaffState(s);
+        setInventoryState(i);
+      } catch (err) {
+        console.error('Load Firebase lỗi:', err);
+        alert('Không tải được dữ liệu Firebase: ' + err.message);
+      }
+
+      setLoading(false);
+    }
+
+    loadAll();
+  }, [user]);
+
+  const setProperties = async (d) => {
+    setPropertiesState(d);
+    try {
+      await saveProperties(d);
+    } catch (err) {
+      console.error('Lỗi lưu properties:', err);
+      alert('Lỗi lưu cơ sở: ' + err.message);
+    }
   };
 
-  const deleteProperty = (id) => {
-    if (!confirm("Xóa cơ sở này?")) return;
+  const setAssets = async (d) => {
+    const cleanData = d.map(x => ({
+      ...x,
+      pid: x.pid ? Number(x.pid) : x.pid,
+    }));
 
-    setProperties(
-      properties.filter((p) => p.id !== id)
-    );
+    setAssetsState(cleanData);
+
+    try {
+      await saveAssets(cleanData);
+    } catch (err) {
+      console.error('Lỗi lưu assets:', err);
+      alert('Lỗi lưu tài sản: ' + err.message);
+    }
+  };
+
+  const setMaintenance = async (d) => {
+    setMaintenanceState(d);
+    try {
+      await saveMaintenance(d);
+    } catch (err) {
+      console.error('Lỗi lưu maintenance:', err);
+      alert('Lỗi lưu bảo trì: ' + err.message);
+    }
+  };
+
+  const setStaff = async (d) => {
+    setStaffState(d);
+    try {
+      await saveStaff(d);
+    } catch (err) {
+      console.error('Lỗi lưu staff:', err);
+      alert('Lỗi lưu nhân viên: ' + err.message);
+    }
+  };
+
+  const setInventory = async (d) => {
+    setInventoryState(d);
+    try {
+      await saveInventory(d);
+    } catch (err) {
+      console.error('Lỗi lưu inventory:', err);
+      alert('Lỗi lưu kho vật tư: ' + err.message);
+    }
+  };
+
+  const urgentAlerts = maintenance.filter(m =>
+    (m.urgency === 'Khẩn' || m.urgency === 'Urgent') &&
+    m.status !== 'Hoàn thành' &&
+    m.status !== 'Completed'
+  ).length;
+
+  const navigate = (p, propId = null) => {
+    setPage(p);
+    setInitPropId(propId);
+  };
+
+  const pageInfo = t(`pages.${page}`) || { title: page, sub: '' };
+
+  const renderPage = () => {
+    switch (page) {
+      case 'overview':
+        return <Overview properties={properties} assets={assets} maintenance={maintenance} />;
+
+      case 'properties':
+        return <Properties properties={properties} setProperties={setProperties} assets={assets} />;
+
+      case 'assets':
+        return <Assets properties={properties} assets={assets} setAssets={setAssets} initialPropId={initPropId} />;
+
+      case 'aircon':
+        return <AirCon properties={properties} />;
+
+      case 'maintenance':
+        return <Maintenance properties={properties} assets={assets} maintenance={maintenance} setMaintenance={setMaintenance} />;
+
+      case 'depreciation':
+        return <Depreciation properties={properties} assets={assets} />;
+
+      case 'inventory':
+        return <Inventory properties={properties} inventory={inventory} setInventory={setInventory} />;
+
+      case 'staff':
+        return <Staff properties={properties} staff={staff} setStaff={setStaff} />;
+
+      case 'settings':
+        return <Settings maintenance={maintenance} properties={properties} staff={staff} onMigrate={migrateLocalToFirebase} />;
+
+      default:
+        return null;
+    }
   };
 
   if (checkingAuth) {
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 18,
-        }}
-      >
-        Đang tải...
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        background: 'var(--bg)'
+      }}>
+        Đang kiểm tra đăng nhập...
       </div>
     );
   }
 
-  if (!user) {
-    return <Login />;
+  if (!user) return <Login />;
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        gap: 16,
+        background: 'var(--bg)'
+      }}>
+        <div style={{
+          width: 40,
+          height: 40,
+          border: '3px solid #1D9E75',
+          borderTopColor: 'transparent',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <div style={{ fontSize: 14, color: 'var(--text2)' }}>
+          Đang tải dữ liệu từ Firebase...
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        minHeight: "100vh",
-        background: "#f5f3ef",
-        fontFamily: "Arial",
-      }}
-    >
-      {/* Sidebar */}
-      <div
-        style={{
-          width: 260,
-          background: "#fff",
-          borderRight: "1px solid #ddd",
-          padding: 20,
-        }}
-      >
-        <h2
-          style={{
-            marginBottom: 30,
-            color: "#009688",
-          }}
-        >
-          Palace Group
-        </h2>
+    <div className="app-layout">
+      <Sidebar page={page} onNavigate={navigate} properties={properties} alerts={urgentAlerts} />
 
-        <div style={{ marginBottom: 12 }}>
-          🏨 Cơ sở
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          🧰 Tài sản
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          🔧 Bảo trì
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          👨‍💼 Nhân viên
-        </div>
-
-        <div style={{ marginTop: 40 }}>
-          <div
-            style={{
-              fontSize: 13,
-              color: "#666",
-              marginBottom: 10,
-            }}
-          >
-            Đăng nhập:
-          </div>
-
-          <div
-            style={{
-              fontSize: 14,
-              marginBottom: 15,
-            }}
-          >
-            {user.email}
-          </div>
-
-          <button
-            onClick={() => signOut(auth)}
-            style={{
-              width: "100%",
-              padding: 10,
-              border: "none",
-              borderRadius: 10,
-              background: "#e53935",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            Đăng xuất
-          </button>
-        </div>
-      </div>
-
-      {/* Main */}
-      <div
-        style={{
-          flex: 1,
-          padding: 30,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: 30,
-          }}
-        >
+      <div className="main">
+        <div className="topbar">
           <div>
-            <h1
-              style={{
-                margin: 0,
-              }}
-            >
-              Cơ sở
-            </h1>
-
-            <div
-              style={{
-                color: "#666",
-              }}
-            >
-              Quản lý khách sạn
-            </div>
+            <div className="topbar-title">{pageInfo.title}</div>
+            <div className="topbar-sub">{pageInfo.sub}</div>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 10,
-            }}
-          >
-            <input
-              value={newProperty}
-              onChange={(e) =>
-                setNewProperty(e.target.value)
-              }
-              placeholder="Tên cơ sở"
-              style={{
-                padding: 12,
-                borderRadius: 10,
-                border: "1px solid #ccc",
-                width: 220,
-              }}
+          <div className="topbar-actions">
+            <span style={{
+              fontSize: 12,
+              color: 'var(--text3)',
+              background: 'var(--bg)',
+              padding: '5px 12px',
+              borderRadius: 20,
+              border: '1px solid var(--border)'
+            }}>
+              {user.email}
+            </span>
+
+            <ExportButton
+              properties={properties}
+              assets={assets}
+              maintenance={maintenance}
+              inventory={inventory}
+              staff={staff}
             />
 
-            <button
-              onClick={addProperty}
-              style={{
-                padding: "12px 18px",
-                border: "none",
-                borderRadius: 10,
-                background: "#009688",
-                color: "#fff",
-                cursor: "pointer",
-              }}
-            >
-              + Thêm cơ sở
+            <span style={{
+              fontSize: 12,
+              color: 'var(--text3)',
+              background: 'var(--bg)',
+              padding: '5px 12px',
+              borderRadius: 20,
+              border: '1px solid var(--border)'
+            }}>
+              {new Date().toLocaleDateString('vi-VN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </span>
+
+            <button className="btn" onClick={() => signOut(auth)}>
+              Đăng xuất
             </button>
           </div>
         </div>
 
-        {/* Cards */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fill,minmax(320px,1fr))",
-            gap: 20,
-          }}
-        >
-          {properties.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                background: "#fff",
-                borderRadius: 18,
-                padding: 20,
-                boxShadow:
-                  "0 5px 20px rgba(0,0,0,0.05)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  marginBottom: 20,
-                }}
-              >
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                    }}
-                  >
-                    {item.name}
-                  </h3>
-
-                  <div
-                    style={{
-                      color: "#666",
-                      marginTop: 5,
-                    }}
-                  >
-                    {item.city} • {item.type}
-                  </div>
-                </div>
-
-                <button
-                  onClick={() =>
-                    deleteProperty(item.id)
-                  }
-                  style={{
-                    border: "none",
-                    background: "#ffebee",
-                    color: "#e53935",
-                    borderRadius: 10,
-                    width: 40,
-                    height: 40,
-                    cursor: "pointer",
-                  }}
-                >
-                  🗑
-                </button>
-              </div>
-
-              <div
-                style={{
-                  color: "#777",
-                  lineHeight: 1.8,
-                }}
-              >
-                <div>Địa chỉ: —</div>
-                <div>Quản lý: —</div>
-                <div>Điện thoại: —</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="content">{renderPage()}</div>
       </div>
     </div>
   );
