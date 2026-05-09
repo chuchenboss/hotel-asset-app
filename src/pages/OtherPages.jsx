@@ -118,13 +118,24 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
     </Modal>
   );
 }
+const isSuperAdmin = currentUser?.isSuperAdmin === true;
+const isCompanyAdmin = currentUser?.permission === "company_admin";
 
+const canManageStaff = isSuperAdmin || isCompanyAdmin;
 export function Maintenance({ properties, assets, maintenance, setMaintenance }) {
   const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+const newStaff = {
+  name: form.name,
+  email: form.email,
+  role: form.role,
+  permission: form.permission,
+  status: "active",
 
+  companyId: currentUser.companyId,
+};
   const filtered = selProp === 'all'
     ? maintenance
     : maintenance.filter(m => Number(m.pid) === Number(selProp));
