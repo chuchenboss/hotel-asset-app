@@ -14,21 +14,23 @@ const PERMISSION_OPTIONS = [
   { value: 'viewer', label: 'Chỉ xem' },
 ];
 
-function isSuperAdmin(user) {
+function checkSuperAdmin(user) {
   return user?.isSuperAdmin === true || user?.permission === 'super_admin';
 }
 
-function isCompanyAdmin(user) {
+function checkCompanyAdmin(user) {
   return user?.permission === 'company_admin' || user?.permission === 'admin';
 }
 
-function canManageStaff(user) {
-  return isSuperAdmin(user) || isCompanyAdmin(user);
+function checkCanManageStaff(user) {
+  return checkSuperAdmin(user) || checkCompanyAdmin(user);
 }
 
-// ---- MAINTENANCE ----
+/* ================= MAINTENANCE ================= */
+
 function MaintForm({ initial, properties, assets, onSave, onClose }) {
   const { t } = useTranslation();
+
   const [form, setForm] = useState(initial || {
     pid: properties[0]?.id || '',
     assetId: '',
@@ -38,7 +40,7 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
     tech: '',
     cost: '',
     status: 'Lên lịch',
-    urgency: 'Thường'
+    urgency: 'Thường',
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -85,7 +87,7 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
       </Field>
 
       <Field label={t('maintenance.content')}>
-        <input className="input" value={form.type} onChange={e => set('type', e.target.value)} placeholder={t('maintenance.contentPlaceholder')} />
+        <input className="input" value={form.type} onChange={e => set('type', e.target.value)} />
       </Field>
 
       <div className="form-row">
@@ -94,7 +96,7 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
         </Field>
 
         <Field label={t('maintenance.technician')}>
-          <input className="input" value={form.tech} onChange={e => set('tech', e.target.value)} placeholder={t('maintenance.techPlaceholder')} />
+          <input className="input" value={form.tech} onChange={e => set('tech', e.target.value)} />
         </Field>
       </div>
 
@@ -118,33 +120,17 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
     </Modal>
   );
 }
-const isSuperAdmin = currentUser?.isSuperAdmin === true;
-const isCompanyAdmin = currentUser?.permission === "company_admin";
 
-const canManageStaff = isSuperAdmin || isCompanyAdmin;
 export function Maintenance({ properties, assets, maintenance, setMaintenance }) {
   const { t } = useTranslation();
+
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
-const newStaff = {
-  name: form.name,
-  email: form.email,
-  role: form.role,
-  permission: form.permission,
-  status: "active",
 
-  companyId: currentUser.companyId,
-};
   const filtered = selProp === 'all'
     ? maintenance
     : maintenance.filter(m => Number(m.pid) === Number(selProp));
-
-  const urgent = filtered.filter(m =>
-    (m.urgency === 'Khẩn' || m.urgency === 'Urgent') &&
-    m.status !== 'Hoàn thành' &&
-    m.status !== 'Completed'
-  ).length;
 
   const handleSave = (form) => {
     if (editing) {
@@ -160,13 +146,6 @@ const newStaff = {
   return (
     <div>
       <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
-
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">{t('maintenance.totalSchedules')}</div><div className="stat-value">{filtered.length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('maintenance.urgent')}</div><div className="stat-value" style={{ color: 'var(--red)' }}>{urgent}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('maintenance.inProgress')}</div><div className="stat-value">{filtered.filter(m => m.status === 'Đang thực hiện' || m.status === 'In Progress').length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('maintenance.completed')}</div><div className="stat-value" style={{ color: 'var(--green)' }}>{filtered.filter(m => m.status === 'Hoàn thành' || m.status === 'Completed').length}</div></div>
-      </div>
 
       <div className="panel">
         <div className="panel-header">
@@ -204,12 +183,12 @@ const newStaff = {
 
                 return (
                   <tr key={m.id}>
-                    <td>{p && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>{p.city}</span>}</td>
-                    <td style={{ fontWeight: 500 }}>{m.assetName}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text2)' }}>{m.type}</td>
-                    <td style={{ fontSize: 12 }}>{m.date ? new Date(m.date).toLocaleDateString('vi-VN') : '—'}</td>
-                    <td style={{ fontSize: 12 }}>{m.tech}</td>
-                    <td style={{ fontSize: 12 }}>{m.cost ? parseInt(m.cost).toLocaleString('vi-VN') : '—'}</td>
+                    <td>{p?.city || p?.name || '—'}</td>
+                    <td>{m.assetName}</td>
+                    <td>{m.type}</td>
+                    <td>{m.date}</td>
+                    <td>{m.tech}</td>
+                    <td>{m.cost ? Number(m.cost).toLocaleString('vi-VN') : '—'}</td>
                     <td><UrgencyChip urgency={m.urgency} /></td>
                     <td><StatusChip status={m.status} /></td>
                     <td>
@@ -254,7 +233,8 @@ const newStaff = {
   );
 }
 
-// ---- DEPRECIATION ----
+/* ================= DEPRECIATION ================= */
+
 export function Depreciation({ properties, assets }) {
   const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
@@ -265,22 +245,9 @@ export function Depreciation({ properties, assets }) {
     ? assets
     : assets.filter(a => Number(a.pid) === Number(selProp));
 
-  const expired = filtered.filter(a => (currentYear - Number(a.year || currentYear)) >= Number(a.lifespan || 1)).length;
-  const near = filtered.filter(a => {
-    const r = Number(a.lifespan || 1) - (currentYear - Number(a.year || currentYear));
-    return r > 0 && r <= 2;
-  }).length;
-
   return (
     <div>
       <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
-
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">{t('depreciation.tracking')}</div><div className="stat-value">{filtered.length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('depreciation.expired')}</div><div className="stat-value" style={{ color: 'var(--red)' }}>{expired}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('depreciation.nearExpiry')}</div><div className="stat-value" style={{ color: 'var(--amber)' }}>{near}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('depreciation.stillValid')}</div><div className="stat-value" style={{ color: 'var(--green)' }}>{filtered.length - expired - near}</div></div>
-      </div>
 
       <div className="panel">
         <div className="panel-header">
@@ -296,7 +263,6 @@ export function Depreciation({ properties, assets }) {
                 <th>{t('depreciation.originalCost')}</th>
                 <th>{t('depreciation.usedYears')}</th>
                 <th>{t('depreciation.remaining')}</th>
-                <th style={{ width: 150 }}>{t('depreciation.progress')}</th>
                 <th>{t('depreciation.condition')}</th>
               </tr>
             </thead>
@@ -306,26 +272,24 @@ export function Depreciation({ properties, assets }) {
                 const p = properties.find(x => Number(x.id) === Number(a.pid));
                 const used = currentYear - Number(a.year || currentYear);
                 const lifespan = Number(a.lifespan || 1);
-                const pct = Math.min(100, Math.round(used / lifespan * 100));
                 const rem = Math.max(0, lifespan - used);
-                const color = pct >= 100 ? '#E24B4A' : pct >= 80 ? '#EF9F27' : '#1D9E75';
-                const chipType = pct >= 100 ? 'red' : pct >= 80 ? 'amber' : 'green';
-                const chipLabel = pct >= 100 ? t('depreciation.statuses.expired') : pct >= 80 ? t('depreciation.statuses.nearEnd') : t('depreciation.statuses.valid');
 
                 return (
                   <tr key={a.id}>
-                    <td>{p && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>{p.city}</span>}</td>
-                    <td style={{ fontWeight: 500 }}>{a.name}</td>
-                    <td style={{ fontSize: 12 }}>{a.value ? (a.value / 1e6).toFixed(0) + ' tr' : '—'}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{used}/{lifespan} {t('depreciation.years')}</td>
-                    <td style={{ fontSize: 12 }}>{rem} {t('depreciation.years')}</td>
+                    <td>{p?.city || p?.name || '—'}</td>
+                    <td>{a.name}</td>
+                    <td>{a.value ? Number(a.value).toLocaleString('vi-VN') : '—'}</td>
+                    <td>{used}/{lifespan}</td>
+                    <td>{rem}</td>
                     <td>
-                      <div className="progress-wrap">
-                        <div className="progress-bar" style={{ width: pct + '%', background: color }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--text3)' }}>{pct}%</span>
+                      {rem <= 0 ? (
+                        <span className="chip chip-red">Hết khấu hao</span>
+                      ) : rem <= 2 ? (
+                        <span className="chip chip-amber">Sắp hết</span>
+                      ) : (
+                        <span className="chip chip-green">Còn tốt</span>
+                      )}
                     </td>
-                    <td><span className={`chip chip-${chipType}`}>{chipLabel}</span></td>
                   </tr>
                 );
               })}
@@ -337,23 +301,18 @@ export function Depreciation({ properties, assets }) {
   );
 }
 
-// ---- STAFF FORM ----
-function StaffForm({
-  initial,
-  properties,
-  onSave,
-  onClose,
-  currentUser
-}) {
+/* ================= STAFF ================= */
+
+function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
   const { t } = useTranslation();
 
-  const superAdmin = isSuperAdmin(currentUser);
-  const companyAdmin = isCompanyAdmin(currentUser);
+  const isSuperAdmin = checkSuperAdmin(currentUser);
+  const isCompanyAdmin = checkCompanyAdmin(currentUser);
 
-  const allowedPermissions = superAdmin
+  const allowedPermissions = isSuperAdmin
     ? PERMISSION_OPTIONS
     : PERMISSION_OPTIONS.filter(p =>
-        ['admin', 'manager', 'staff', 'viewer'].includes(p.value)
+        ['manager', 'staff', 'viewer'].includes(p.value)
       );
 
   const [form, setForm] = useState(initial || {
@@ -363,34 +322,32 @@ function StaffForm({
     dept: '',
     email: '',
     status: 'Hoạt động',
-    permission: companyAdmin ? 'staff' : 'company_admin',
+    permission: isSuperAdmin ? 'company_admin' : 'staff',
     companyId: currentUser?.companyId || '',
-    isSuperAdmin: false
+    isSuperAdmin: false,
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const save = () => {
-    if (!form.name.trim()) return alert(t('staff.fullName'));
-    if (!form.email.trim()) return alert('Email?');
-
-    if (!superAdmin && !currentUser?.companyId) {
-      return alert('Tài khoản của bạn chưa có companyId');
-    }
+    if (!form.name.trim()) return alert('Nhập họ tên');
+    if (!form.email.trim()) return alert('Nhập email');
 
     const clean = {
       ...form,
       email: form.email.trim().toLowerCase(),
-      companyId: superAdmin
-        ? String(form.companyId || '').trim()
-        : currentUser.companyId,
-      isSuperAdmin: form.permission === 'super_admin'
+      companyId: isSuperAdmin ? String(form.companyId || '').trim() : currentUser?.companyId,
+      isSuperAdmin: form.permission === 'super_admin',
     };
 
-    if (!clean.companyId) return alert('Nhập Company ID');
+    if (!clean.companyId) return alert('Thiếu Company ID');
 
-    if (!superAdmin && ['super_admin', 'company_admin'].includes(clean.permission)) {
-      return alert('Bạn không được cấp quyền super_admin hoặc company_admin');
+    if (!isSuperAdmin && ['super_admin', 'company_admin', 'admin'].includes(clean.permission)) {
+      return alert('Bạn không được cấp quyền này');
+    }
+
+    if (!isSuperAdmin && !isCompanyAdmin) {
+      return alert('Bạn không có quyền phân quyền nhân viên');
     }
 
     onSave(clean);
@@ -398,26 +355,15 @@ function StaffForm({
 
   return (
     <div>
-      {superAdmin && (
-        <Field label="Company ID">
-          <input
-            className="input"
-            value={form.companyId || ''}
-            onChange={e => set('companyId', e.target.value)}
-            placeholder="vd: phan-hospitality"
-          />
-        </Field>
-      )}
-
-      {!superAdmin && (
-        <Field label="Company ID">
-          <input
-            className="input"
-            value={currentUser?.companyId || ''}
-            disabled
-          />
-        </Field>
-      )}
+      <Field label="Company ID">
+        <input
+          className="input"
+          value={isSuperAdmin ? form.companyId : currentUser?.companyId || ''}
+          disabled={!isSuperAdmin}
+          onChange={e => set('companyId', e.target.value)}
+          placeholder="vd: phan-hospitality"
+        />
+      </Field>
 
       <Field label={t('common.branch')}>
         <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
@@ -425,12 +371,12 @@ function StaffForm({
         </select>
       </Field>
 
-      <Field label={t('staff.fullName')}>
-        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('staff.namePlaceholder')} />
+      <Field label="Họ tên">
+        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} />
       </Field>
 
       <div className="form-row">
-        <Field label={t('staff.role')}>
+        <Field label="Vai trò">
           <select className="select" value={form.role} onChange={e => set('role', e.target.value)}>
             <option>CEO</option>
             <option>Admin tổng công ty</option>
@@ -442,7 +388,7 @@ function StaffForm({
           </select>
         </Field>
 
-        <Field label={t('staff.department')}>
+        <Field label="Bộ phận">
           <select className="select" value={form.dept} onChange={e => set('dept', e.target.value)}>
             <option value="">Chọn bộ phận</option>
             <option>Ban Giám Đốc</option>
@@ -456,22 +402,22 @@ function StaffForm({
         </Field>
       </div>
 
-      <Field label={t('common.email')}>
-        <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} placeholder={t('staff.emailPlaceholder')} />
+      <Field label="Email">
+        <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
       </Field>
 
       <div className="form-row">
-        <Field label={t('staff.permission')}>
+        <Field label="Phân quyền">
           <select className="select" value={form.permission} onChange={e => set('permission', e.target.value)}>
             {allowedPermissions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
           </select>
         </Field>
 
-        <Field label={t('common.status')}>
+        <Field label="Trạng thái">
           <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
-            <option value="Hoạt động">{t('staff.statuses.active')}</option>
-            <option value="Nghỉ phép">{t('staff.statuses.onLeave')}</option>
-            <option value="Tạm nghỉ">{t('staff.statuses.inactive')}</option>
+            <option value="Hoạt động">Hoạt động</option>
+            <option value="Nghỉ phép">Nghỉ phép</option>
+            <option value="Tạm nghỉ">Tạm nghỉ</option>
           </select>
         </Field>
       </div>
@@ -484,7 +430,6 @@ function StaffForm({
   );
 }
 
-// ---- STAFF ----
 export function Staff({ properties, staff, setStaff, currentUser }) {
   const { t } = useTranslation();
 
@@ -492,10 +437,10 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const superAdmin = isSuperAdmin(currentUser);
-  const manager = canManageStaff(currentUser);
+  const isSuperAdmin = checkSuperAdmin(currentUser);
+  const canManageStaff = checkCanManageStaff(currentUser);
 
-  const visibleStaff = superAdmin
+  const visibleStaff = isSuperAdmin
     ? staff
     : staff.filter(s => s.companyId === currentUser?.companyId);
 
@@ -507,8 +452,8 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
     const clean = {
       ...form,
       id: editing?.id || String(Date.now()),
-      companyId: superAdmin ? form.companyId : currentUser?.companyId,
-      isSuperAdmin: form.permission === 'super_admin'
+      companyId: isSuperAdmin ? form.companyId : currentUser?.companyId,
+      isSuperAdmin: form.permission === 'super_admin',
     };
 
     if (editing) {
@@ -521,13 +466,13 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
     setEditing(null);
   };
 
-  const PERM_CHIP = {
-    super_admin: <span className="chip chip-red">Super Admin</span>,
-    company_admin: <span className="chip chip-blue">Admin tổng công ty</span>,
-    admin: <span className="chip chip-blue">{t('staff.permissions.admin')}</span>,
-    manager: <span className="chip chip-purple">{t('staff.permissions.manager')}</span>,
-    staff: <span className="chip chip-green">{t('staff.permissions.staff')}</span>,
-    viewer: <span className="chip chip-gray">{t('staff.permissions.viewer')}</span>,
+  const permissionLabel = {
+    super_admin: 'Super Admin',
+    company_admin: 'Admin tổng công ty',
+    admin: 'Quản trị hệ thống',
+    manager: 'Quản lý',
+    staff: 'Nhân viên',
+    viewer: 'Chỉ xem',
   };
 
   return (
@@ -535,19 +480,31 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
       <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
 
       <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">{t('staff.totalStaff')}</div><div className="stat-value">{filtered.length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('staff.working')}</div><div className="stat-value" style={{ color: 'var(--green)' }}>{filtered.filter(s => s.status === 'Hoạt động' || s.status === 'Active').length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('staff.onLeave')}</div><div className="stat-value" style={{ color: 'var(--amber)' }}>{filtered.filter(s => s.status !== 'Hoạt động' && s.status !== 'Active').length}</div></div>
-        <div className="stat-card"><div className="stat-label">Công ty</div><div className="stat-value" style={{ fontSize: 18 }}>{superAdmin ? 'All' : currentUser?.companyId || '—'}</div></div>
+        <div className="stat-card">
+          <div className="stat-label">Tổng nhân viên</div>
+          <div className="stat-value">{filtered.length}</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">Đang làm việc</div>
+          <div className="stat-value">{filtered.filter(s => s.status === 'Hoạt động').length}</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-label">Công ty</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>
+            {isSuperAdmin ? 'All' : currentUser?.companyId || '—'}
+          </div>
+        </div>
       </div>
 
       <div className="panel">
         <div className="panel-header">
           <span className="panel-title">{t('nav.staff')}</span>
 
-          {manager && (
+          {canManageStaff && (
             <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-              <Plus size={14} /> {t('staff.add')}
+              <Plus size={14} /> Thêm nhân viên
             </button>
           )}
         </div>
@@ -557,13 +514,13 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
             <thead>
               <tr>
                 <th>Company ID</th>
-                <th>{t('common.branch')}</th>
-                <th>{t('common.name')}</th>
-                <th>{t('staff.role')}</th>
-                <th>{t('staff.department')}</th>
-                <th>{t('common.email')}</th>
-                <th>{t('staff.permission')}</th>
-                <th>{t('common.status')}</th>
+                <th>Cơ sở</th>
+                <th>Tên</th>
+                <th>Vai trò</th>
+                <th>Bộ phận</th>
+                <th>Email</th>
+                <th>Phân quyền</th>
+                <th>Trạng thái</th>
                 <th></th>
               </tr>
             </thead>
@@ -572,37 +529,24 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>
-                    {t('staff.noStaff')}
+                    Chưa có nhân viên
                   </td>
                 </tr>
               ) : filtered.map(s => {
                 const p = properties.find(x => Number(x.id) === Number(s.pid));
-                const initials = s.name ? s.name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase() : '?';
-                const propColor = p?.color || '#1D9E75';
 
                 return (
                   <tr key={s.id}>
                     <td style={{ fontSize: 11, color: 'var(--text3)' }}>{s.companyId || '—'}</td>
-
-                    <td>{p && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: propColor + '22', color: propColor, fontWeight: 500 }}>{p.city}</span>}</td>
-
+                    <td>{p?.city || p?.name || '—'}</td>
+                    <td>{s.name}</td>
+                    <td>{s.role}</td>
+                    <td>{s.dept}</td>
+                    <td>{s.email}</td>
+                    <td><span className="chip chip-blue">{permissionLabel[s.permission] || s.permission}</span></td>
+                    <td><span className="chip chip-green">{s.status}</span></td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: propColor + '22', color: propColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, flexShrink: 0 }}>
-                          {initials}
-                        </div>
-                        <span style={{ fontWeight: 500 }}>{s.name}</span>
-                      </div>
-                    </td>
-
-                    <td style={{ fontSize: 12 }}>{s.role}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.dept}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{s.email}</td>
-                    <td>{PERM_CHIP[s.permission] || <span className="chip chip-gray">{s.permission}</span>}</td>
-                    <td><span className={`chip ${s.status === 'Hoạt động' || s.status === 'Active' ? 'chip-green' : 'chip-gray'}`}>{s.status}</span></td>
-
-                    <td>
-                      {manager && (
+                      {canManageStaff && (
                         <div style={{ display: 'flex', gap: 4 }}>
                           <button className="btn btn-sm btn-icon" onClick={() => { setEditing(s); setShowForm(true); }}>
                             <Pencil size={12} />
@@ -611,8 +555,8 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                           <button
                             className="btn btn-sm btn-icon btn-danger"
                             onClick={() => {
-                              if (s.permission === 'super_admin' && !superAdmin) return alert('Không được xoá super admin');
-                              if (confirm(t('staff.deleteConfirm') + ' ' + s.name + '?')) {
+                              if (s.permission === 'super_admin' && !isSuperAdmin) return alert('Không được xoá super admin');
+                              if (confirm('Xoá nhân viên này?')) {
                                 setStaff(staff.filter(x => x.id !== s.id));
                               }
                             }}
@@ -632,7 +576,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
       {showForm && (
         <Modal
-          title={editing?.id ? t('staff.edit') : t('staff.addNew')}
+          title={editing?.id ? 'Sửa nhân viên' : 'Thêm nhân viên mới'}
           onClose={() => {
             setShowForm(false);
             setEditing(null);
@@ -655,9 +599,11 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
   );
 }
 
-// ---- INVENTORY FORM ----
+/* ================= INVENTORY ================= */
+
 function InventoryForm({ initial, properties, onSave, onClose }) {
   const { t } = useTranslation();
+
   const [form, setForm] = useState(initial || {
     pid: properties[0]?.id || '',
     code: '',
@@ -666,7 +612,7 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
     qty: 0,
     minQty: 0,
     unit: 'Cái',
-    price: 0
+    price: 0,
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -680,39 +626,27 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
         </select>
       </Field>
 
-      <div className="form-row">
-        <Field label={t('inventory.itemCode')}>
-          <input className="input" value={form.code} onChange={e => set('code', e.target.value)} placeholder={t('inventory.codePlaceholder')} />
-        </Field>
+      <Field label="Mã vật tư">
+        <input className="input" value={form.code} onChange={e => set('code', e.target.value)} />
+      </Field>
 
-        <Field label={t('inventory.category')}>
-          <select className="select" value={form.category} onChange={e => set('category', e.target.value)}>
-            {INV_CATS.map(c => <option key={c}>{c}</option>)}
-          </select>
-        </Field>
-      </div>
+      <Field label="Tên vật tư">
+        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} />
+      </Field>
 
-      <Field label={t('common.name') + ' *'}>
-        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder={t('inventory.namePlaceholder')} />
+      <Field label="Danh mục">
+        <select className="select" value={form.category} onChange={e => set('category', e.target.value)}>
+          {INV_CATS.map(c => <option key={c}>{c}</option>)}
+        </select>
       </Field>
 
       <div className="form-row">
-        <Field label={t('inventory.stockQty')}>
+        <Field label="Tồn kho">
           <input className="input" type="number" value={form.qty} onChange={e => set('qty', parseInt(e.target.value) || 0)} />
         </Field>
 
-        <Field label={t('inventory.minQtyLabel')}>
+        <Field label="Tồn tối thiểu">
           <input className="input" type="number" value={form.minQty} onChange={e => set('minQty', parseInt(e.target.value) || 0)} />
-        </Field>
-      </div>
-
-      <div className="form-row">
-        <Field label={t('inventory.unit')}>
-          <input className="input" value={form.unit} onChange={e => set('unit', e.target.value)} placeholder={t('inventory.unitPlaceholder')} />
-        </Field>
-
-        <Field label={t('inventory.unitPrice')}>
-          <input className="input" type="number" value={form.price} onChange={e => set('price', parseInt(e.target.value) || 0)} />
         </Field>
       </div>
 
@@ -721,7 +655,7 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
         <button
           className="btn btn-primary"
           onClick={() => {
-            if (!form.name) return alert(t('common.name'));
+            if (!form.name) return alert('Nhập tên vật tư');
             onSave(form);
           }}
         >
@@ -732,9 +666,7 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
   );
 }
 
-// ---- INVENTORY ----
 export function Inventory({ properties, inventory, setInventory }) {
-  const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -742,8 +674,6 @@ export function Inventory({ properties, inventory, setInventory }) {
   const filtered = selProp === 'all'
     ? inventory
     : inventory.filter(i => Number(i.pid) === Number(selProp));
-
-  const low = filtered.filter(i => Number(i.qty || 0) < Number(i.minQty || 0)).length;
 
   const handleSave = (form) => {
     if (editing) {
@@ -756,25 +686,15 @@ export function Inventory({ properties, inventory, setInventory }) {
     setEditing(null);
   };
 
-  const totalVal = filtered.reduce((s, i) => s + Number(i.qty || 0) * Number(i.price || 0), 0);
-  const fmtVal = v => v >= 1e9 ? (v / 1e9).toFixed(1) + ' tỷ' : v >= 1e6 ? (v / 1e6).toFixed(0) + ' tr' : v.toLocaleString();
-
   return (
     <div>
       <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
 
-      <div className="stats-grid">
-        <div className="stat-card"><div className="stat-label">{t('inventory.totalItems')}</div><div className="stat-value">{filtered.length}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('inventory.lowStock')}</div><div className="stat-value" style={{ color: low > 0 ? 'var(--red)' : 'inherit' }}>{low}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('inventory.inStock')}</div><div className="stat-value" style={{ color: 'var(--green)' }}>{filtered.length - low}</div></div>
-        <div className="stat-card"><div className="stat-label">{t('inventory.totalValue')}</div><div className="stat-value" style={{ fontSize: 18 }}>{fmtVal(totalVal)}</div></div>
-      </div>
-
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">{t('nav.inventory')}</span>
+          <span className="panel-title">Kho vật tư</span>
           <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-            <Plus size={14} /> {t('inventory.add')}
+            <Plus size={14} /> Thêm vật tư
           </button>
         </div>
 
@@ -782,45 +702,30 @@ export function Inventory({ properties, inventory, setInventory }) {
           <table>
             <thead>
               <tr>
-                <th>{t('common.branch')}</th>
-                <th>{t('inventory.itemCode')}</th>
-                <th>{t('common.name')}</th>
-                <th>{t('inventory.category')}</th>
-                <th>{t('inventory.stockQty')}</th>
-                <th>{t('inventory.minQty')}</th>
-                <th style={{ width: 140 }}>{t('inventory.stockLevel')}</th>
-                <th>{t('inventory.unit')}</th>
+                <th>Cơ sở</th>
+                <th>Mã</th>
+                <th>Tên</th>
+                <th>Danh mục</th>
+                <th>Tồn kho</th>
+                <th>Tối thiểu</th>
+                <th>Đơn vị</th>
                 <th></th>
               </tr>
             </thead>
 
             <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text3)' }}>
-                    {t('inventory.noItems')}
-                  </td>
-                </tr>
-              ) : filtered.map(item => {
+              {filtered.map(item => {
                 const p = properties.find(x => Number(x.id) === Number(item.pid));
-                const pct = Number(item.minQty || 0) > 0 ? Math.min(100, Math.round(Number(item.qty || 0) / Number(item.minQty || 1) * 100)) : 100;
-                const color = pct >= 100 ? '#1D9E75' : pct >= 60 ? '#EF9F27' : '#E24B4A';
 
                 return (
                   <tr key={item.id}>
-                    <td>{p && <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>{p.city}</span>}</td>
-                    <td style={{ fontFamily: 'monospace', fontSize: 11, color: 'var(--text3)' }}>{item.code}</td>
-                    <td style={{ fontWeight: 500 }}>{item.name}</td>
-                    <td><span className="chip chip-gray">{item.category}</span></td>
-                    <td style={{ fontWeight: 600 }}>{Number(item.qty || 0).toLocaleString()}</td>
-                    <td style={{ color: 'var(--text3)', fontSize: 12 }}>{item.minQty}</td>
-                    <td>
-                      <div className="progress-wrap">
-                        <div className="progress-bar" style={{ width: Math.min(100, pct) + '%', background: color }} />
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--text3)' }}>{pct}%</span>
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{item.unit}</td>
+                    <td>{p?.city || p?.name || '—'}</td>
+                    <td>{item.code}</td>
+                    <td>{item.name}</td>
+                    <td>{item.category}</td>
+                    <td>{item.qty}</td>
+                    <td>{item.minQty}</td>
+                    <td>{item.unit}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
                         <button className="btn btn-sm btn-icon" onClick={() => { setEditing(item); setShowForm(true); }}>
@@ -830,7 +735,7 @@ export function Inventory({ properties, inventory, setInventory }) {
                         <button
                           className="btn btn-sm btn-icon btn-danger"
                           onClick={() => {
-                            if (confirm(t('inventory.delete'))) {
+                            if (confirm('Xoá vật tư này?')) {
                               setInventory(inventory.filter(x => x.id !== item.id));
                             }
                           }}
@@ -849,7 +754,7 @@ export function Inventory({ properties, inventory, setInventory }) {
 
       {showForm && (
         <Modal
-          title={editing?.id ? t('inventory.edit') : t('inventory.addNew')}
+          title={editing?.id ? 'Sửa vật tư' : 'Thêm vật tư'}
           onClose={() => {
             setShowForm(false);
             setEditing(null);
