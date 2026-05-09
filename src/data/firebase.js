@@ -2,6 +2,7 @@ import { getAuth } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, setDoc, doc } from "firebase/firestore";
 import { createUserWithEmailAndPassword } from "firebase/auth";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDYyTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
@@ -15,6 +16,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
 export const auth = getAuth(app);
 export async function createStaffLogin(email, password) {
   const userCredential = await createUserWithEmailAndPassword(
@@ -53,7 +55,14 @@ export const saveStaff = (data) => saveCollection("staff", data);
 
 export const getInventory = () => getCollection("inventory");
 export const saveInventory = (data) => saveCollection("inventory", data);
+export async function uploadAssetImage(file, assetId, type) {
+  const fileName = `${Date.now()}-${file.name}`;
+  const fileRef = ref(storage, `assets/${assetId}/${type}/${fileName}`);
 
+  await uploadBytes(fileRef, file);
+
+  return await getDownloadURL(fileRef);
+}
 export async function migrateLocalToFirebase() {
   const store = await import("./store.js");
 
