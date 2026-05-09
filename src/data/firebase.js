@@ -1,3 +1,4 @@
+import { query, where } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, setDoc, doc } from "firebase/firestore";
@@ -76,3 +77,21 @@ export async function migrateLocalToFirebase() {
 }
 export const getCompanies = () => getCollection("companies");
 export const saveCompanies = (data) => saveCollection("companies", data);
+export async function findStaffByEmailAndCompany(email, companyId) {
+  const q = query(
+    collection(db, "staff"),
+    where("email", "==", email),
+    where("companyId", "==", companyId)
+  );
+
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) return null;
+
+  const docData = snapshot.docs[0];
+
+  return {
+    id: docData.id,
+    ...docData.data()
+  };
+}
