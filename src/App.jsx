@@ -10,6 +10,7 @@ import Properties from './pages/Properties.jsx';
 import Assets from './pages/Assets.jsx';
 import AirCon from './pages/AirCon.jsx';
 import Settings from './pages/Settings.jsx';
+import Companies from './pages/Companies.jsx';
 import { Maintenance, Depreciation, Staff, Inventory } from './pages/OtherPages.jsx';
 import Login from './Login.jsx';
 
@@ -20,6 +21,8 @@ import {
   getMaintenance,
   getStaff,
   getInventory,
+  getCompanies,
+  saveCompanies,
   saveProperties,
   saveAssets,
   saveMaintenance,
@@ -46,6 +49,7 @@ export default function App() {
   const [maintenance, setMaintenanceState] = useState([]);
   const [staff, setStaffState] = useState([]);
   const [inventory, setInventoryState] = useState([]);
+  const [companies, setCompaniesState] = useState([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -66,12 +70,13 @@ export default function App() {
       setLoading(true);
 
       try {
-        const [p, a, m, s, i] = await Promise.all([
+        const [p, a, m, s, i, c] = await Promise.all([
           getProperties(),
           getAssets(),
           getMaintenance(),
           getStaff(),
           getInventory(),
+          getCompanies(),
         ]);
 
         setPropertiesState(p || []);
@@ -79,6 +84,7 @@ export default function App() {
         setMaintenanceState(m || []);
         setStaffState((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
         setInventoryState((i || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        setCompaniesState(c || []);
       } catch (err) {
         console.error('Load Firebase lỗi:', err);
         alert('Không tải được dữ liệu Firebase: ' + err.message);
@@ -145,6 +151,16 @@ export default function App() {
     }
   };
 
+  const setCompanies = async (d) => {
+    setCompaniesState(d);
+
+    try {
+      await saveCompanies(d);
+    } catch (err) {
+      alert('Lỗi lưu công ty: ' + err.message);
+    }
+  };
+
   const urgentAlerts = maintenance.filter(m =>
     (m.urgency === 'Khẩn' || m.urgency === 'Urgent') &&
     m.status !== 'Hoàn thành' &&
@@ -189,6 +205,16 @@ export default function App() {
             staff={staff}
             setStaff={setStaff}
             currentUser={currentUser}
+          />
+        );
+
+      case 'companies':
+        if (!currentUser?.isSuperAdmin) return null;
+
+        return (
+          <Companies
+            companies={companies}
+            setCompanies={setCompanies}
           />
         );
 
@@ -239,6 +265,7 @@ export default function App() {
         alerts={urgentAlerts}
         mobileOpen={sidebarOpen}
         onCloseMobile={() => setSidebarOpen(false)}
+        currentUser={currentUser}
       />
 
       <div className="main">

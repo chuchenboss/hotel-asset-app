@@ -65,3 +65,5 @@ export async function migrateLocalToFirebase() {
 
   alert("Đã chuyển dữ liệu local lên Firebase!");
 }
+export const getCompanies = () => getCollection("companies");
+export const saveCompanies = (data) => saveCollection("companies", data);
