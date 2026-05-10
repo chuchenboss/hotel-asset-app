@@ -33,6 +33,16 @@ import {
 
 import { useTranslation } from './i18n/useTranslation.jsx';
 
+const SUPER_ADMIN_EMAIL = 'chuchen.boss@gmail.com';
+
+function isSuperAdminUser(user, staffUser) {
+  return (
+    String(user?.email || '').toLowerCase() === SUPER_ADMIN_EMAIL ||
+    staffUser?.isSuperAdmin === true ||
+    staffUser?.permission === 'super_admin'
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -44,11 +54,11 @@ export default function App() {
 
   const { t } = useTranslation();
 
-  const [properties, setPropertiesState] = useState([]);
-  const [assets, setAssetsState] = useState([]);
-  const [maintenance, setMaintenanceState] = useState([]);
-  const [staff, setStaffState] = useState([]);
-  const [inventory, setInventoryState] = useState([]);
+  const [allProperties, setAllProperties] = useState([]);
+  const [allAssets, setAllAssets] = useState([]);
+  const [allMaintenance, setAllMaintenance] = useState([]);
+  const [allStaff, setAllStaff] = useState([]);
+  const [allInventory, setAllInventory] = useState([]);
   const [companies, setCompaniesState] = useState([]);
 
   useEffect(() => {
@@ -79,11 +89,11 @@ export default function App() {
           getCompanies(),
         ]);
 
-        setPropertiesState(p || []);
-        setAssetsState((a || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
-        setMaintenanceState(m || []);
-        setStaffState((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
-        setInventoryState((i || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        setAllProperties(p || []);
+        setAllAssets((a || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        setAllMaintenance(m || []);
+        setAllStaff((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        setAllInventory((i || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
         setCompaniesState(c || []);
       } catch (err) {
         console.error('Load Firebase lỗi:', err);
@@ -96,56 +106,133 @@ export default function App() {
     loadAll();
   }, [user]);
 
-  const currentUser = staff.find(s =>
+  const currentUser = allStaff.find(s =>
     String(s.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
   );
 
+  const superAdmin = isSuperAdminUser(user, currentUser);
+  const currentCompanyId = superAdmin
+    ? 'super-admin'
+    : currentUser?.companyId || localStorage.getItem('companyId');
+
+  const filterByCompany = (items) => {
+    if (superAdmin) return items;
+    return items.filter(x => String(x.companyId || '') === String(currentCompanyId || ''));
+  };
+
+  const properties = filterByCompany(allProperties);
+  const assets = filterByCompany(allAssets);
+  const maintenance = filterByCompany(allMaintenance);
+  const staff = filterByCompany(allStaff);
+  const inventory = filterByCompany(allInventory);
+
+  const addCompanyId = (item) => {
+    if (superAdmin) return item;
+
+    return {
+      ...item,
+      companyId: item.companyId || currentCompanyId,
+    };
+  };
+
   const setProperties = async (d) => {
-    setPropertiesState(d);
+    const scopedData = d.map(addCompanyId);
+    const merged = superAdmin
+      ? scopedData
+      : [
+          ...allProperties.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
+          ...scopedData,
+        ];
+
+    setAllProperties(merged);
+
     try {
-      await saveProperties(d);
+      await saveProperties(merged);
     } catch (err) {
       alert('Lỗi lưu cơ sở: ' + err.message);
     }
   };
 
   const setAssets = async (d) => {
-    const cleanData = d.map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid }));
-    setAssetsState(cleanData);
+    const scopedData = d.map(x => addCompanyId({
+      ...x,
+      pid: x.pid ? Number(x.pid) : x.pid,
+    }));
+
+    const merged = superAdmin
+      ? scopedData
+      : [
+          ...allAssets.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
+          ...scopedData,
+        ];
+
+    setAllAssets(merged);
 
     try {
-      await saveAssets(cleanData);
+      await saveAssets(merged);
     } catch (err) {
       alert('Lỗi lưu tài sản: ' + err.message);
     }
   };
 
   const setMaintenance = async (d) => {
-    setMaintenanceState(d);
+    const scopedData = d.map(addCompanyId);
+    const merged = superAdmin
+      ? scopedData
+      : [
+          ...allMaintenance.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
+          ...scopedData,
+        ];
+
+    setAllMaintenance(merged);
+
     try {
-      await saveMaintenance(d);
+      await saveMaintenance(merged);
     } catch (err) {
       alert('Lỗi lưu bảo trì: ' + err.message);
     }
   };
 
   const setStaff = async (d) => {
-    const cleanData = d.map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid }));
-    setStaffState(cleanData);
+    const scopedData = d.map(x => ({
+      ...x,
+      pid: x.pid ? Number(x.pid) : x.pid,
+      companyId: superAdmin ? x.companyId : currentCompanyId,
+    }));
+
+    const merged = superAdmin
+      ? scopedData
+      : [
+          ...allStaff.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
+          ...scopedData,
+        ];
+
+    setAllStaff(merged);
 
     try {
-      await saveStaff(cleanData);
+      await saveStaff(merged);
     } catch (err) {
       alert('Lỗi lưu nhân viên: ' + err.message);
     }
   };
 
   const setInventory = async (d) => {
-    const cleanData = d.map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid }));
-    setInventoryState(cleanData);
+    const scopedData = d.map(x => addCompanyId({
+      ...x,
+      pid: x.pid ? Number(x.pid) : x.pid,
+    }));
+
+    const merged = superAdmin
+      ? scopedData
+      : [
+          ...allInventory.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
+          ...scopedData,
+        ];
+
+    setAllInventory(merged);
 
     try {
-      await saveInventory(cleanData);
+      await saveInventory(merged);
     } catch (err) {
       alert('Lỗi lưu kho vật tư: ' + err.message);
     }
@@ -204,12 +291,18 @@ export default function App() {
             properties={properties}
             staff={staff}
             setStaff={setStaff}
-            currentUser={currentUser}
+            currentUser={{
+              ...currentUser,
+              email: user?.email,
+              companyId: currentCompanyId,
+              isSuperAdmin: superAdmin,
+              permission: superAdmin ? 'super_admin' : currentUser?.permission,
+            }}
           />
         );
 
       case 'companies':
-        if (!currentUser?.isSuperAdmin) return null;
+        if (!superAdmin) return null;
 
         return (
           <Companies
@@ -265,7 +358,13 @@ export default function App() {
         alerts={urgentAlerts}
         mobileOpen={sidebarOpen}
         onCloseMobile={() => setSidebarOpen(false)}
-        currentUser={currentUser}
+        currentUser={{
+          ...currentUser,
+          email: user?.email,
+          companyId: currentCompanyId,
+          isSuperAdmin: superAdmin,
+          permission: superAdmin ? 'super_admin' : currentUser?.permission,
+        }}
       />
 
       <div className="main">
@@ -311,11 +410,7 @@ export default function App() {
               border: '1px solid var(--border)',
               whiteSpace: 'nowrap',
             }}>
-              {new Date().toLocaleDateString('vi-VN', {
-                day: 'numeric',
-                month: 'numeric',
-                year: 'numeric',
-              })}
+              {new Date().toLocaleDateString('vi-VN')}
             </span>
 
             <button className="btn" onClick={() => signOut(auth)}>
