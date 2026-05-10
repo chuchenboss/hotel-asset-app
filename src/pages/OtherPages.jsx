@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Modal, Field, PropFilterBar, UrgencyChip, StatusChip } from '../components/UI.jsx';
 import { URGENCIES, MAINT_STATUSES, ROLES } from '../data/store.js';
+import { createStaffAccount } from '../data/firebase.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
 
 const PERMISSION_OPTIONS = [
@@ -327,11 +328,17 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
     isSuperAdmin: false,
   });
 
+  const [password, setPassword] = useState('');
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const save = () => {
+  const save = async () => {
     if (!form.name.trim()) return alert('Nhập họ tên');
     if (!form.email.trim()) return alert('Nhập email');
+
+    if (!initial?.id && (!password || password.length < 6)) {
+      return alert('Mật khẩu đăng nhập phải từ 6 ký tự');
+    }
 
     const clean = {
       ...form,
@@ -350,7 +357,7 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
       return alert('Bạn không có quyền phân quyền nhân viên');
     }
 
-    onSave(clean);
+    await onSave(clean, password);
   };
 
   return (
@@ -402,9 +409,21 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
         </Field>
       </div>
 
-      <Field label="Email">
+      <Field label="Email đăng nhập">
         <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
       </Field>
+
+      {!initial?.id && (
+        <Field label="Mật khẩu đăng nhập">
+          <input
+            className="input"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Tối thiểu 6 ký tự"
+          />
+        </Field>
+      )}
 
       <div className="form-row">
         <Field label="Phân quyền">
@@ -448,22 +467,41 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
     ? visibleStaff
     : visibleStaff.filter(s => Number(s.pid) === Number(selProp));
 
-  const handleSave = (form) => {
-    const clean = {
-      ...form,
-      id: editing?.id || String(Date.now()),
-      companyId: isSuperAdmin ? form.companyId : currentUser?.companyId,
-      isSuperAdmin: form.permission === 'super_admin',
-    };
+  const handleSave = async (form, password) => {
+    try {
+      if (editing) {
+        const clean = {
+          ...form,
+          id: editing.id,
+          companyId: isSuperAdmin ? form.companyId : currentUser?.companyId,
+          isSuperAdmin: form.permission === 'super_admin',
+        };
 
-    if (editing) {
-      setStaff(staff.map(s => s.id === editing.id ? { ...editing, ...clean } : s));
-    } else {
-      setStaff([...staff, clean]);
+        await setStaff(staff.map(s => s.id === editing.id ? { ...editing, ...clean } : s));
+      } else {
+        const clean = {
+          ...form,
+          companyId: isSuperAdmin ? form.companyId : currentUser?.companyId,
+          isSuperAdmin: form.permission === 'super_admin',
+        };
+
+        const uid = await createStaffAccount(clean, password);
+
+        await setStaff([
+          ...staff,
+          {
+            ...clean,
+            id: uid,
+            createdAt: Date.now(),
+          }
+        ]);
+      }
+
+      setShowForm(false);
+      setEditing(null);
+    } catch (err) {
+      alert('Lỗi tạo tài khoản nhân viên: ' + err.message);
     }
-
-    setShowForm(false);
-    setEditing(null);
   };
 
   const permissionLabel = {

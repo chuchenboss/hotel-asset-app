@@ -125,7 +125,7 @@ export async function findStaffByEmailAndCompany(email, companyId) {
 
 // ================= CREATE COMPANY ADMIN =================
 
-export async function createCompanyAdmin(
+export async function createCompanyAdmin(	
   companyId,
   email,
   password,
@@ -138,7 +138,30 @@ export async function createCompanyAdmin(
     cleanEmail,
     password
   );
+export async function createStaffAccount(staffData, password) {
+  const cleanEmail = String(staffData.email)
+    .trim()
+    .toLowerCase();
 
+  const userCredential = await createUserWithEmailAndPassword(
+    secondaryAuth,
+    cleanEmail,
+    password
+  );
+
+  const uid = userCredential.user.uid;
+
+  await setDoc(doc(db, "staff", uid), {
+    ...staffData,
+    id: uid,
+    email: cleanEmail,
+    createdAt: Date.now(),
+  });
+
+  await signOut(secondaryAuth);
+
+  return uid;
+}
   const uid = userCredential.user.uid;
 
   await setDoc(doc(db, "staff", uid), {
