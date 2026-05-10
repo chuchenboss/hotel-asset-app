@@ -26,14 +26,15 @@ import {
 } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDyYTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
+  apiKey: "AIzaSyDYyTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
   authDomain: "hotel-asset-app.firebaseapp.com",
   projectId: "hotel-asset-app",
   storageBucket: "hotel-asset-app.firebasestorage.app",
   messagingSenderId: "855963320931",
   appId: "1:855963320931:web:2257f02004d013ad8b6e56",
-  measurementId: "G-ZRTQ0GCXX1",
+  measurementId: "G-ZRTQ0GCXX1"
 };
+
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
