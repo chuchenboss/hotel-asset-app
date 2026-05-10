@@ -26,23 +26,24 @@ import {
 } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDYyTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
+  apiKey: "AIzaSyDyYTLK5HEA8t0_h9m7R61-6FpHKDiqdkE",
   authDomain: "hotel-asset-app.firebaseapp.com",
   projectId: "hotel-asset-app",
   storageBucket: "hotel-asset-app.firebasestorage.app",
   messagingSenderId: "855963320931",
   appId: "1:855963320931:web:2257f02004d013ad8b6e56",
-  measurementId: "G-ZRTQ0GCXX1"
+  measurementId: "G-ZRTQ0GCXX1",
 };
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const app = getApps().length
+  ? getApps()[0]
+  : initializeApp(firebaseConfig);
 
 export const db = getFirestore(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
 
-// Dùng app phụ để tạo user mới mà không làm super admin bị logout
-const secondaryApp = getApps().find(a => a.name === "Secondary")
+const secondaryApp = getApps().find((a) => a.name === "Secondary")
   || initializeApp(firebaseConfig, "Secondary");
 
 const secondaryAuth = getAuth(secondaryApp);
@@ -52,26 +53,24 @@ const secondaryAuth = getAuth(secondaryApp);
 async function getCollection(name) {
   const snapshot = await getDocs(collection(db, name));
 
-  return snapshot.docs.map(d => ({
+  return snapshot.docs.map((d) => ({
     id: d.id,
     ...d.data(),
   }));
 }
 
 async function saveCollection(name, data = []) {
-  const ref = collection(db, name);
-  const snapshot = await getDocs(ref);
+  const refCol = collection(db, name);
+  const snapshot = await getDocs(refCol);
 
-  const newIds = data.map(item => String(item.id));
+  const newIds = data.map((item) => String(item.id));
 
-  // xoá document không còn trong mảng
   for (const oldDoc of snapshot.docs) {
     if (!newIds.includes(oldDoc.id)) {
       await deleteDoc(doc(db, name, oldDoc.id));
     }
   }
 
-  // lưu / cập nhật document
   for (const item of data) {
     const id = String(item.id || crypto.randomUUID());
 
@@ -107,8 +106,8 @@ export const saveCompanies = (data) => saveCollection("companies", data);
 export async function findStaffByEmailAndCompany(email, companyId) {
   const q = query(
     collection(db, "staff"),
-    where("email", "==", String(email).toLowerCase()),
-    where("companyId", "==", companyId)
+    where("email", "==", String(email).trim().toLowerCase()),
+    where("companyId", "==", String(companyId).trim())
   );
 
   const snapshot = await getDocs(q);
@@ -125,7 +124,7 @@ export async function findStaffByEmailAndCompany(email, companyId) {
 
 // ================= CREATE COMPANY ADMIN =================
 
-export async function createCompanyAdmin(	
+export async function createCompanyAdmin(
   companyId,
   email,
   password,
@@ -138,6 +137,29 @@ export async function createCompanyAdmin(
     cleanEmail,
     password
   );
+
+  const uid = userCredential.user.uid;
+
+  await setDoc(doc(db, "staff", uid), {
+    id: uid,
+    name,
+    email: cleanEmail,
+    companyId: String(companyId).trim(),
+    permission: "company_admin",
+    role: "Admin tổng công ty",
+    dept: "Ban Giám Đốc",
+    status: "Hoạt động",
+    isSuperAdmin: false,
+    createdAt: Date.now(),
+  });
+
+  await signOut(secondaryAuth);
+
+  return uid;
+}
+
+// ================= CREATE STAFF ACCOUNT =================
+
 export async function createStaffAccount(staffData, password) {
   const cleanEmail = String(staffData.email)
     .trim()
@@ -155,25 +177,7 @@ export async function createStaffAccount(staffData, password) {
     ...staffData,
     id: uid,
     email: cleanEmail,
-    createdAt: Date.now(),
-  });
-
-  await signOut(secondaryAuth);
-
-  return uid;
-}
-  const uid = userCredential.user.uid;
-
-  await setDoc(doc(db, "staff", uid), {
-    id: uid,
-    name,
-    email: cleanEmail,
-    companyId,
-    permission: "company_admin",
-    role: "Admin tổng công ty",
-    dept: "Ban Giám Đốc",
-    status: "Hoạt động",
-    isSuperAdmin: false,
+    companyId: String(staffData.companyId || "").trim(),
     createdAt: Date.now(),
   });
 
