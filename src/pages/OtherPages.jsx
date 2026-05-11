@@ -45,7 +45,19 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
   });
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const propAssets = assets.filter(a => Number(a.pid) === Number(form.pid));
+
+  const propAssets = assets.filter(a =>
+    Number(a.pid) === Number(form.pid)
+  );
+
+  const save = () => {
+    if (!form.assetName) return alert(t('maintenance.selectAsset'));
+
+    onSave({
+      ...form,
+      ...(form.pid ? { pid: Number(form.pid) } : {}),
+    });
+  };
 
   return (
     <Modal
@@ -53,29 +65,35 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
       onClose={onClose}
       footer={
         <>
-          <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              if (!form.assetName) return alert(t('maintenance.selectAsset'));
-              onSave(form);
-            }}
-          >
+          <button className="btn" onClick={onClose}>
+            {t('common.cancel')}
+          </button>
+
+          <button className="btn btn-primary" onClick={save}>
             {t('common.save')}
           </button>
         </>
       }
     >
       <Field label={t('common.branch')}>
-        <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
-          {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select
+          className="select"
+          value={form.pid || ''}
+          onChange={e => set('pid', e.target.value)}
+        >
+          <option value="">Chọn cơ sở</option>
+          {properties.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </Field>
 
       <Field label={t('maintenance.asset')}>
         <select
           className="select"
-          value={form.assetId}
+          value={form.assetId || ''}
           onChange={e => {
             const a = assets.find(x => String(x.id) === String(e.target.value));
             set('assetId', e.target.value);
@@ -83,39 +101,73 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
           }}
         >
           <option value="">{t('maintenance.selectAsset')}</option>
-          {propAssets.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          {propAssets.map(a => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
         </select>
       </Field>
 
       <Field label={t('maintenance.content')}>
-        <input className="input" value={form.type} onChange={e => set('type', e.target.value)} />
+        <input
+          className="input"
+          value={form.type}
+          onChange={e => set('type', e.target.value)}
+        />
       </Field>
 
       <div className="form-row">
         <Field label={t('common.date')}>
-          <input className="input" type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+          <input
+            className="input"
+            type="date"
+            value={form.date}
+            onChange={e => set('date', e.target.value)}
+          />
         </Field>
 
         <Field label={t('maintenance.technician')}>
-          <input className="input" value={form.tech} onChange={e => set('tech', e.target.value)} />
+          <input
+            className="input"
+            value={form.tech}
+            onChange={e => set('tech', e.target.value)}
+          />
         </Field>
       </div>
 
       <div className="form-row">
         <Field label={t('common.cost') + ' (VNĐ)'}>
-          <input className="input" type="number" value={form.cost} onChange={e => set('cost', parseInt(e.target.value) || 0)} />
+          <input
+            className="input"
+            type="number"
+            value={form.cost}
+            onChange={e => set('cost', parseInt(e.target.value) || 0)}
+          />
         </Field>
 
         <Field label={t('maintenance.urgency')}>
-          <select className="select" value={form.urgency} onChange={e => set('urgency', e.target.value)}>
-            {URGENCIES.map(u => <option key={u}>{u}</option>)}
+          <select
+            className="select"
+            value={form.urgency}
+            onChange={e => set('urgency', e.target.value)}
+          >
+            {URGENCIES.map(u => (
+              <option key={u}>{u}</option>
+            ))}
           </select>
         </Field>
       </div>
 
       <Field label={t('common.status')}>
-        <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
-          {MAINT_STATUSES.map(s => <option key={s}>{s}</option>)}
+        <select
+          className="select"
+          value={form.status}
+          onChange={e => set('status', e.target.value)}
+        >
+          {MAINT_STATUSES.map(s => (
+            <option key={s}>{s}</option>
+          ))}
         </select>
       </Field>
     </Modal>
@@ -135,9 +187,19 @@ export function Maintenance({ properties, assets, maintenance, setMaintenance })
 
   const handleSave = (form) => {
     if (editing) {
-      setMaintenance(maintenance.map(m => m.id === editing.id ? { ...editing, ...form } : m));
+      setMaintenance(
+        maintenance.map(m =>
+          m.id === editing.id ? { ...editing, ...form } : m
+        )
+      );
     } else {
-      setMaintenance([...maintenance, { ...form, id: String(Date.now()) }]);
+      setMaintenance([
+        ...maintenance,
+        {
+          ...form,
+          id: String(Date.now()),
+        },
+      ]);
     }
 
     setShowForm(false);
@@ -146,12 +208,25 @@ export function Maintenance({ properties, assets, maintenance, setMaintenance })
 
   return (
     <div>
-      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
+      <PropFilterBar
+        props={properties}
+        selected={selProp}
+        onSelect={setSelProp}
+      />
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">{t('nav.maintenance')}</span>
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+          <span className="panel-title">
+            {t('nav.maintenance')}
+          </span>
+
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setEditing(null);
+              setShowForm(true);
+            }}
+          >
             <Plus size={14} /> {t('maintenance.add')}
           </button>
         </div>
@@ -175,44 +250,63 @@ export function Maintenance({ properties, assets, maintenance, setMaintenance })
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: 32, color: 'var(--text3)' }}>
+                  <td
+                    colSpan={9}
+                    style={{
+                      textAlign: 'center',
+                      padding: 32,
+                      color: 'var(--text3)',
+                    }}
+                  >
                     {t('common.noData')}
                   </td>
                 </tr>
-              ) : filtered.map(m => {
-                const p = properties.find(x => Number(x.id) === Number(m.pid));
+              ) : (
+                filtered.map(m => {
+                  const p = properties.find(x => Number(x.id) === Number(m.pid));
 
-                return (
-                  <tr key={m.id}>
-                    <td>{p?.city || p?.name || '—'}</td>
-                    <td>{m.assetName}</td>
-                    <td>{m.type}</td>
-                    <td>{m.date}</td>
-                    <td>{m.tech}</td>
-                    <td>{m.cost ? Number(m.cost).toLocaleString('vi-VN') : '—'}</td>
-                    <td><UrgencyChip urgency={m.urgency} /></td>
-                    <td><StatusChip status={m.status} /></td>
-                    <td>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-sm btn-icon" onClick={() => { setEditing(m); setShowForm(true); }}>
-                          <Pencil size={12} />
-                        </button>
+                  return (
+                    <tr key={m.id}>
+                      <td>{p?.city || p?.name || '—'}</td>
+                      <td>{m.assetName}</td>
+                      <td>{m.type}</td>
+                      <td>{m.date}</td>
+                      <td>{m.tech}</td>
+                      <td>
+                        {m.cost ? Number(m.cost).toLocaleString('vi-VN') : '—'}
+                      </td>
+                      <td><UrgencyChip urgency={m.urgency} /></td>
+                      <td><StatusChip status={m.status} /></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button
+                            className="btn btn-sm btn-icon"
+                            onClick={() => {
+                              setEditing(m);
+                              setShowForm(true);
+                            }}
+                          >
+                            <Pencil size={12} />
+                          </button>
 
-                        <button
-                          className="btn btn-sm btn-icon btn-danger"
-                          onClick={() => {
-                            if (confirm(t('maintenance.deleteConfirm'))) {
-                              setMaintenance(maintenance.filter(x => x.id !== m.id));
-                            }
-                          }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                          <button
+                            className="btn btn-sm btn-icon btn-danger"
+                            onClick={() => {
+                              if (confirm(t('maintenance.deleteConfirm'))) {
+                                setMaintenance(
+                                  maintenance.filter(x => x.id !== m.id)
+                                );
+                              }
+                            }}
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -248,11 +342,17 @@ export function Depreciation({ properties, assets }) {
 
   return (
     <div>
-      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
+      <PropFilterBar
+        props={properties}
+        selected={selProp}
+        onSelect={setSelProp}
+      />
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">{t('nav.depreciation')}</span>
+          <span className="panel-title">
+            {t('nav.depreciation')}
+          </span>
         </div>
 
         <div className="table-wrap">
@@ -279,7 +379,9 @@ export function Depreciation({ properties, assets }) {
                   <tr key={a.id}>
                     <td>{p?.city || p?.name || '—'}</td>
                     <td>{a.name}</td>
-                    <td>{a.value ? Number(a.value).toLocaleString('vi-VN') : '—'}</td>
+                    <td>
+                      {a.value ? Number(a.value).toLocaleString('vi-VN') : '—'}
+                    </td>
                     <td>{used}/{lifespan}</td>
                     <td>{rem}</td>
                     <td>
@@ -330,7 +432,12 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
 
   const [password, setPassword] = useState('');
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    setForm(f => ({
+      ...f,
+      [k]: v,
+    }));
+  };
 
   const save = async () => {
     if (!form.name.trim()) return alert('Nhập họ tên');
@@ -340,21 +447,34 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
       return alert('Mật khẩu đăng nhập phải từ 6 ký tự');
     }
 
+    if (!isSuperAdmin && !isCompanyAdmin) {
+      return alert('Bạn không có quyền phân quyền nhân viên');
+    }
+
     const clean = {
       ...form,
       email: form.email.trim().toLowerCase(),
-      companyId: isSuperAdmin ? String(form.companyId || '').trim() : currentUser?.companyId,
+      companyId: isSuperAdmin
+        ? String(form.companyId || '').trim()
+        : currentUser?.companyId,
       isSuperAdmin: form.permission === 'super_admin',
     };
 
-    if (!clean.companyId) return alert('Thiếu Company ID');
-
-    if (!isSuperAdmin && ['super_admin', 'company_admin', 'admin'].includes(clean.permission)) {
-      return alert('Bạn không được cấp quyền này');
+    if (form.pid) {
+      clean.pid = Number(form.pid);
+    } else {
+      delete clean.pid;
     }
 
-    if (!isSuperAdmin && !isCompanyAdmin) {
-      return alert('Bạn không có quyền phân quyền nhân viên');
+    if (!clean.companyId) {
+      return alert('Thiếu Company ID');
+    }
+
+    if (
+      !isSuperAdmin &&
+      ['super_admin', 'company_admin', 'admin'].includes(clean.permission)
+    ) {
+      return alert('Bạn không được cấp quyền này');
     }
 
     await onSave(clean, password);
@@ -373,30 +493,53 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
       </Field>
 
       <Field label={t('common.branch')}>
-        <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
-          {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select
+          className="select"
+          value={form.pid || ''}
+          onChange={e => set('pid', e.target.value)}
+        >
+          <option value="">Không chọn cơ sở</option>
+          {properties.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </Field>
 
       <Field label="Họ tên">
-        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} />
+        <input
+          className="input"
+          value={form.name}
+          onChange={e => set('name', e.target.value)}
+        />
       </Field>
 
       <div className="form-row">
         <Field label="Vai trò">
-          <select className="select" value={form.role} onChange={e => set('role', e.target.value)}>
+          <select
+            className="select"
+            value={form.role}
+            onChange={e => set('role', e.target.value)}
+          >
             <option>CEO</option>
             <option>Admin tổng công ty</option>
             <option>Quản lý khách sạn</option>
             <option>Quản lý tài sản</option>
             <option>Kỹ thuật</option>
             <option>Nhân viên</option>
-            {ROLES.map(r => <option key={r}>{r}</option>)}
+            {ROLES.map(r => (
+              <option key={r}>{r}</option>
+            ))}
           </select>
         </Field>
 
         <Field label="Bộ phận">
-          <select className="select" value={form.dept} onChange={e => set('dept', e.target.value)}>
+          <select
+            className="select"
+            value={form.dept}
+            onChange={e => set('dept', e.target.value)}
+          >
             <option value="">Chọn bộ phận</option>
             <option>Ban Giám Đốc</option>
             <option>Quản lý tài sản</option>
@@ -410,7 +553,12 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
       </div>
 
       <Field label="Email đăng nhập">
-        <input className="input" type="email" value={form.email} onChange={e => set('email', e.target.value)} />
+        <input
+          className="input"
+          type="email"
+          value={form.email}
+          onChange={e => set('email', e.target.value)}
+        />
       </Field>
 
       {!initial?.id && (
@@ -427,13 +575,25 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
 
       <div className="form-row">
         <Field label="Phân quyền">
-          <select className="select" value={form.permission} onChange={e => set('permission', e.target.value)}>
-            {allowedPermissions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          <select
+            className="select"
+            value={form.permission}
+            onChange={e => set('permission', e.target.value)}
+          >
+            {allowedPermissions.map(p => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
           </select>
         </Field>
 
         <Field label="Trạng thái">
-          <select className="select" value={form.status} onChange={e => set('status', e.target.value)}>
+          <select
+            className="select"
+            value={form.status}
+            onChange={e => set('status', e.target.value)}
+          >
             <option value="Hoạt động">Hoạt động</option>
             <option value="Nghỉ phép">Nghỉ phép</option>
             <option value="Tạm nghỉ">Tạm nghỉ</option>
@@ -441,9 +601,19 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
         </Field>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-        <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-        <button className="btn btn-primary" onClick={save}>{t('common.save')}</button>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 16,
+      }}>
+        <button className="btn" onClick={onClose}>
+          {t('common.cancel')}
+        </button>
+
+        <button className="btn btn-primary" onClick={save}>
+          {t('common.save')}
+        </button>
       </div>
     </div>
   );
@@ -473,17 +643,37 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
         const clean = {
           ...form,
           id: editing.id,
-          companyId: isSuperAdmin ? form.companyId : currentUser?.companyId,
+          companyId: isSuperAdmin
+            ? form.companyId
+            : currentUser?.companyId,
           isSuperAdmin: form.permission === 'super_admin',
         };
 
-        await setStaff(staff.map(s => s.id === editing.id ? { ...editing, ...clean } : s));
+        if (form.pid) {
+          clean.pid = Number(form.pid);
+        } else {
+          delete clean.pid;
+        }
+
+        await setStaff(
+          staff.map(s =>
+            s.id === editing.id ? { ...editing, ...clean } : s
+          )
+        );
       } else {
         const clean = {
           ...form,
-          companyId: isSuperAdmin ? form.companyId : currentUser?.companyId,
+          companyId: isSuperAdmin
+            ? form.companyId
+            : currentUser?.companyId,
           isSuperAdmin: form.permission === 'super_admin',
         };
+
+        if (form.pid) {
+          clean.pid = Number(form.pid);
+        } else {
+          delete clean.pid;
+        }
 
         const uid = await createStaffAccount(clean, password);
 
@@ -493,14 +683,14 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
             ...clean,
             id: uid,
             createdAt: Date.now(),
-          }
+          },
         ]);
       }
 
       setShowForm(false);
       setEditing(null);
     } catch (err) {
-      alert('Lỗi tạo tài khoản nhân viên: ' + err.message);
+      alert('Lỗi lưu nhân viên: ' + err.message);
     }
   };
 
@@ -515,7 +705,11 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
   return (
     <div>
-      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
+      <PropFilterBar
+        props={properties}
+        selected={selProp}
+        onSelect={setSelProp}
+      />
 
       <div className="stats-grid">
         <div className="stat-card">
@@ -525,7 +719,9 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
         <div className="stat-card">
           <div className="stat-label">Đang làm việc</div>
-          <div className="stat-value">{filtered.filter(s => s.status === 'Hoạt động').length}</div>
+          <div className="stat-value">
+            {filtered.filter(s => s.status === 'Hoạt động').length}
+          </div>
         </div>
 
         <div className="stat-card">
@@ -538,10 +734,18 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">{t('nav.staff')}</span>
+          <span className="panel-title">
+            {t('nav.staff')}
+          </span>
 
           {canManageStaff && (
-            <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => {
+                setEditing(null);
+                setShowForm(true);
+              }}
+            >
               <Plus size={14} /> Thêm nhân viên
             </button>
           )}
@@ -566,47 +770,79 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: 40, color: 'var(--text3)' }}>
+                  <td
+                    colSpan={9}
+                    style={{
+                      textAlign: 'center',
+                      padding: 40,
+                      color: 'var(--text3)',
+                    }}
+                  >
                     Chưa có nhân viên
                   </td>
                 </tr>
-              ) : filtered.map(s => {
-                const p = properties.find(x => Number(x.id) === Number(s.pid));
+              ) : (
+                filtered.map(s => {
+                  const p = properties.find(x => Number(x.id) === Number(s.pid));
 
-                return (
-                  <tr key={s.id}>
-                    <td style={{ fontSize: 11, color: 'var(--text3)' }}>{s.companyId || '—'}</td>
-                    <td>{p?.city || p?.name || '—'}</td>
-                    <td>{s.name}</td>
-                    <td>{s.role}</td>
-                    <td>{s.dept}</td>
-                    <td>{s.email}</td>
-                    <td><span className="chip chip-blue">{permissionLabel[s.permission] || s.permission}</span></td>
-                    <td><span className="chip chip-green">{s.status}</span></td>
-                    <td>
-                      {canManageStaff && (
-                        <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-sm btn-icon" onClick={() => { setEditing(s); setShowForm(true); }}>
-                            <Pencil size={12} />
-                          </button>
+                  return (
+                    <tr key={s.id}>
+                      <td style={{ fontSize: 11, color: 'var(--text3)' }}>
+                        {s.companyId || '—'}
+                      </td>
 
-                          <button
-                            className="btn btn-sm btn-icon btn-danger"
-                            onClick={() => {
-                              if (s.permission === 'super_admin' && !isSuperAdmin) return alert('Không được xoá super admin');
-                              if (confirm('Xoá nhân viên này?')) {
-                                setStaff(staff.filter(x => x.id !== s.id));
-                              }
-                            }}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+                      <td>{p?.city || p?.name || '—'}</td>
+                      <td>{s.name}</td>
+                      <td>{s.role}</td>
+                      <td>{s.dept}</td>
+                      <td>{s.email}</td>
+
+                      <td>
+                        <span className="chip chip-blue">
+                          {permissionLabel[s.permission] || s.permission}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="chip chip-green">
+                          {s.status}
+                        </span>
+                      </td>
+
+                      <td>
+                        {canManageStaff && (
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button
+                              className="btn btn-sm btn-icon"
+                              onClick={() => {
+                                setEditing(s);
+                                setShowForm(true);
+                              }}
+                            >
+                              <Pencil size={12} />
+                            </button>
+
+                            <button
+                              className="btn btn-sm btn-icon btn-danger"
+                              onClick={() => {
+                                if (s.permission === 'super_admin' && !isSuperAdmin) {
+                                  return alert('Không được xoá super admin');
+                                }
+
+                                if (confirm('Xoá nhân viên này?')) {
+                                  setStaff(staff.filter(x => x.id !== s.id));
+                                }
+                              }}
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -653,50 +889,113 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
     price: 0,
   });
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const INV_CATS = ['Buồng phòng', 'Kỹ thuật', 'F&B', 'Vệ sinh', 'Văn phòng'];
+  const set = (k, v) => {
+    setForm(f => ({
+      ...f,
+      [k]: v,
+    }));
+  };
+
+  const INV_CATS = [
+    'Buồng phòng',
+    'Kỹ thuật',
+    'F&B',
+    'Vệ sinh',
+    'Văn phòng',
+  ];
+
+  const save = () => {
+    if (!form.name) return alert('Nhập tên vật tư');
+
+    const clean = {
+      ...form,
+    };
+
+    if (form.pid) {
+      clean.pid = Number(form.pid);
+    } else {
+      delete clean.pid;
+    }
+
+    onSave(clean);
+  };
 
   return (
     <div>
       <Field label={t('common.branch')}>
-        <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
-          {properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        <select
+          className="select"
+          value={form.pid || ''}
+          onChange={e => set('pid', e.target.value)}
+        >
+          <option value="">Không chọn cơ sở</option>
+          {properties.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
         </select>
       </Field>
 
       <Field label="Mã vật tư">
-        <input className="input" value={form.code} onChange={e => set('code', e.target.value)} />
+        <input
+          className="input"
+          value={form.code}
+          onChange={e => set('code', e.target.value)}
+        />
       </Field>
 
       <Field label="Tên vật tư">
-        <input className="input" value={form.name} onChange={e => set('name', e.target.value)} />
+        <input
+          className="input"
+          value={form.name}
+          onChange={e => set('name', e.target.value)}
+        />
       </Field>
 
       <Field label="Danh mục">
-        <select className="select" value={form.category} onChange={e => set('category', e.target.value)}>
-          {INV_CATS.map(c => <option key={c}>{c}</option>)}
+        <select
+          className="select"
+          value={form.category}
+          onChange={e => set('category', e.target.value)}
+        >
+          {INV_CATS.map(c => (
+            <option key={c}>{c}</option>
+          ))}
         </select>
       </Field>
 
       <div className="form-row">
         <Field label="Tồn kho">
-          <input className="input" type="number" value={form.qty} onChange={e => set('qty', parseInt(e.target.value) || 0)} />
+          <input
+            className="input"
+            type="number"
+            value={form.qty}
+            onChange={e => set('qty', parseInt(e.target.value) || 0)}
+          />
         </Field>
 
         <Field label="Tồn tối thiểu">
-          <input className="input" type="number" value={form.minQty} onChange={e => set('minQty', parseInt(e.target.value) || 0)} />
+          <input
+            className="input"
+            type="number"
+            value={form.minQty}
+            onChange={e => set('minQty', parseInt(e.target.value) || 0)}
+          />
         </Field>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-        <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-        <button
-          className="btn btn-primary"
-          onClick={() => {
-            if (!form.name) return alert('Nhập tên vật tư');
-            onSave(form);
-          }}
-        >
+      <div style={{
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+        marginTop: 16,
+      }}>
+        <button className="btn" onClick={onClose}>
+          {t('common.cancel')}
+        </button>
+
+        <button className="btn btn-primary" onClick={save}>
           {t('common.save')}
         </button>
       </div>
@@ -715,9 +1014,19 @@ export function Inventory({ properties, inventory, setInventory }) {
 
   const handleSave = (form) => {
     if (editing) {
-      setInventory(inventory.map(i => i.id === editing.id ? { ...editing, ...form } : i));
+      setInventory(
+        inventory.map(i =>
+          i.id === editing.id ? { ...editing, ...form } : i
+        )
+      );
     } else {
-      setInventory([...inventory, { ...form, id: String(Date.now()) }]);
+      setInventory([
+        ...inventory,
+        {
+          ...form,
+          id: String(Date.now()),
+        },
+      ]);
     }
 
     setShowForm(false);
@@ -726,12 +1035,25 @@ export function Inventory({ properties, inventory, setInventory }) {
 
   return (
     <div>
-      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
+      <PropFilterBar
+        props={properties}
+        selected={selProp}
+        onSelect={setSelProp}
+      />
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">Kho vật tư</span>
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
+          <span className="panel-title">
+            Kho vật tư
+          </span>
+
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setEditing(null);
+              setShowForm(true);
+            }}
+          >
             <Plus size={14} /> Thêm vật tư
           </button>
         </div>
@@ -764,9 +1086,16 @@ export function Inventory({ properties, inventory, setInventory }) {
                     <td>{item.qty}</td>
                     <td>{item.minQty}</td>
                     <td>{item.unit}</td>
+
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-sm btn-icon" onClick={() => { setEditing(item); setShowForm(true); }}>
+                        <button
+                          className="btn btn-sm btn-icon"
+                          onClick={() => {
+                            setEditing(item);
+                            setShowForm(true);
+                          }}
+                        >
                           <Pencil size={12} />
                         </button>
 
@@ -774,7 +1103,9 @@ export function Inventory({ properties, inventory, setInventory }) {
                           className="btn btn-sm btn-icon btn-danger"
                           onClick={() => {
                             if (confirm('Xoá vật tư này?')) {
-                              setInventory(inventory.filter(x => x.id !== item.id));
+                              setInventory(
+                                inventory.filter(x => x.id !== item.id)
+                              );
                             }
                           }}
                         >
