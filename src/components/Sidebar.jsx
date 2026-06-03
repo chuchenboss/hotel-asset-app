@@ -185,7 +185,7 @@ export default function Sidebar({
               <div key={p.id} className="prop-nav-item" onClick={() => handleNav('assets')}>
                 <div className="prop-dot" style={{ background: p.color }} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-                  {p.city || p.name}
+                  {p.name || p.city}
                 </span>
                 <ChevronRight size={10} style={{ color: 'var(--text3)', flexShrink: 0 }} />
               </div>
