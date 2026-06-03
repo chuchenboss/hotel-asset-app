@@ -333,26 +333,74 @@ export function Maintenance({ properties, assets, maintenance, setMaintenance })
 export function Depreciation({ properties, assets }) {
   const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
+  const [sortBy, setSortBy] = useState('pct_desc');
 
   const currentYear = new Date().getFullYear();
 
-  const filtered = selProp === 'all'
-    ? assets
-    : assets.filter(a => Number(a.pid) === Number(selProp));
+  const filtered = (selProp === 'all' ? assets : assets.filter(a => Number(a.pid) === Number(selProp)))
+    .map(a => {
+      const used     = currentYear - Number(a.year || currentYear);
+      const lifespan = Number(a.lifespan || 1);
+      const pct      = Math.min(100, Math.round((used / lifespan) * 100));
+      const rem      = Math.max(0, lifespan - used);
+      const remValue = Math.max(0, Math.round((rem / lifespan) * (a.value || 0)));
+      return { ...a, used, lifespan, pct, rem, remValue };
+    })
+    .sort((a, b) => {
+      if (sortBy === 'pct_desc') return b.pct - a.pct;
+      if (sortBy === 'pct_asc')  return a.pct - b.pct;
+      if (sortBy === 'value')    return b.value - a.value;
+      return 0;
+    });
+
+  const expired  = filtered.filter(a => a.pct >= 100).length;
+  const nearEnd  = filtered.filter(a => a.pct >= 80 && a.pct < 100).length;
+  const totalVal = filtered.reduce((s, a) => s + (a.value || 0), 0);
+  const remTotalVal = filtered.reduce((s, a) => s + a.remValue, 0);
+
+  function fmtVND(v) {
+    if (!v && v !== 0) return '—';
+    if (v >= 1_000_000_000) return (v / 1_000_000_000).toFixed(1) + ' tỷ';
+    if (v >= 1_000_000) return (v / 1_000_000).toFixed(0) + ' tr';
+    return v.toLocaleString('vi-VN');
+  }
 
   return (
     <div>
-      <PropFilterBar
-        props={properties}
-        selected={selProp}
-        onSelect={setSelProp}
-      />
+      {/* Summary cards */}
+      <div className="stats-grid" style={{ marginBottom: 18 }}>
+        <div className="stat-card">
+          <div className="stat-label">Tổng tài sản</div>
+          <div className="stat-value">{filtered.length}</div>
+          <div className="stat-sub">Nguyên giá: {fmtVND(totalVal)}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Còn giá trị</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>{fmtVND(remTotalVal)}</div>
+          <div className="stat-sub">{filtered.length > 0 ? Math.round(remTotalVal / totalVal * 100) : 0}% nguyên giá</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Đã hết khấu hao</div>
+          <div className="stat-value" style={{ color: expired > 0 ? 'var(--red)' : 'inherit' }}>{expired}</div>
+          <div className="stat-sub">Cần xem xét thanh lý</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Sắp hết hạn (≤2 năm)</div>
+          <div className="stat-value" style={{ color: nearEnd > 0 ? 'var(--amber)' : 'inherit' }}>{nearEnd}</div>
+          <div className="stat-sub">Cần lên kế hoạch thay thế</div>
+        </div>
+      </div>
+
+      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">
-            {t('nav.depreciation')}
-          </span>
+          <span className="panel-title">{t('nav.depreciation')}</span>
+          <select className="select" value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ fontSize: 12 }}>
+            <option value="pct_desc">Khấu hao cao → thấp</option>
+            <option value="pct_asc">Khấu hao thấp → cao</option>
+            <option value="value">Giá trị cao nhất</option>
+          </select>
         </div>
 
         <div className="table-wrap">
@@ -362,35 +410,53 @@ export function Depreciation({ properties, assets }) {
                 <th>{t('common.branch')}</th>
                 <th>{t('common.name')}</th>
                 <th>{t('depreciation.originalCost')}</th>
+                <th style={{ minWidth: 160 }}>Mức khấu hao</th>
                 <th>{t('depreciation.usedYears')}</th>
-                <th>{t('depreciation.remaining')}</th>
+                <th>Còn giá trị</th>
                 <th>{t('depreciation.condition')}</th>
               </tr>
             </thead>
-
             <tbody>
               {filtered.map(a => {
                 const p = properties.find(x => Number(x.id) === Number(a.pid));
-                const used = currentYear - Number(a.year || currentYear);
-                const lifespan = Number(a.lifespan || 1);
-                const rem = Math.max(0, lifespan - used);
+                const barColor = a.pct >= 100 ? '#A32D2D' : a.pct >= 80 ? '#854F0B' : a.pct >= 50 ? '#D97706' : '#1D9E75';
 
                 return (
-                  <tr key={a.id}>
-                    <td>{p?.city || p?.name || '—'}</td>
-                    <td>{a.name}</td>
+                  <tr key={a.id} style={a.pct >= 100 ? { background: '#fff8f8' } : {}}>
                     <td>
-                      {a.value ? Number(a.value).toLocaleString('vi-VN') : '—'}
+                      {p && (
+                        <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>
+                          {p.city}
+                        </span>
+                      )}
                     </td>
-                    <td>{used}/{lifespan}</td>
-                    <td>{rem}</td>
+                    <td style={{ fontWeight: 500 }}>{a.name}</td>
+                    <td style={{ fontSize: 12 }}>{fmtVND(a.value)}</td>
                     <td>
-                      {rem <= 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, background: 'var(--bg2)', borderRadius: 4, height: 6, minWidth: 80 }}>
+                          <div style={{
+                            width: `${a.pct}%`, height: 6, borderRadius: 4,
+                            background: barColor,
+                            transition: 'width 0.3s ease',
+                          }} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: barColor, minWidth: 34 }}>
+                          {a.pct}%
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--text2)' }}>
+                      {a.used}/{a.lifespan} năm
+                    </td>
+                    <td style={{ fontSize: 12 }}>{fmtVND(a.remValue)}</td>
+                    <td>
+                      {a.pct >= 100 ? (
                         <span className="chip chip-red">Hết khấu hao</span>
-                      ) : rem <= 2 ? (
-                        <span className="chip chip-amber">Sắp hết</span>
+                      ) : a.rem <= 2 ? (
+                        <span className="chip chip-amber">Sắp hết ({a.rem}n)</span>
                       ) : (
-                        <span className="chip chip-green">Còn tốt</span>
+                        <span className="chip chip-green">Còn {a.rem} năm</span>
                       )}
                     </td>
                   </tr>
@@ -967,93 +1033,100 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
 
       <div className="form-row">
         <Field label="Tồn kho">
-          <input
-            className="input"
-            type="number"
-            value={form.qty}
-            onChange={e => set('qty', parseInt(e.target.value) || 0)}
-          />
+          <input className="input" type="number" value={form.qty} onChange={e => set('qty', parseInt(e.target.value) || 0)} />
         </Field>
-
         <Field label="Tồn tối thiểu">
-          <input
-            className="input"
-            type="number"
-            value={form.minQty}
-            onChange={e => set('minQty', parseInt(e.target.value) || 0)}
-          />
+          <input className="input" type="number" value={form.minQty} onChange={e => set('minQty', parseInt(e.target.value) || 0)} />
         </Field>
       </div>
 
-      <div style={{
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: 8,
-        marginTop: 16,
-      }}>
-        <button className="btn" onClick={onClose}>
-          {t('common.cancel')}
-        </button>
+      <div className="form-row">
+        <Field label="Đơn vị">
+          <select className="select" value={form.unit || 'Cái'} onChange={e => set('unit', e.target.value)}>
+            {['Cái','Bộ','Chai','Hộp','Gói','Thùng','Kg','Lít','Cuộn','Tờ'].map(u => <option key={u}>{u}</option>)}
+          </select>
+        </Field>
+        <Field label="Đơn giá (VNĐ)">
+          <input className="input" type="number" value={form.price || 0} onChange={e => set('price', parseInt(e.target.value) || 0)} />
+        </Field>
+      </div>
 
-        <button className="btn btn-primary" onClick={save}>
-          {t('common.save')}
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+        <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
+        <button className="btn btn-primary" onClick={save}>{t('common.save')}</button>
       </div>
     </div>
   );
 }
 
 export function Inventory({ properties, inventory, setInventory }) {
+  const { t } = useTranslation();
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [selCat, setSelCat] = useState('all');
 
-  const filtered = selProp === 'all'
-    ? inventory
-    : inventory.filter(i => Number(i.pid) === Number(selProp));
+  const filtered = (selProp === 'all' ? inventory : inventory.filter(i => Number(i.pid) === Number(selProp)))
+    .filter(i => selCat === 'all' || i.category === selCat);
+
+  const lowStock  = inventory.filter(i => i.qty <= i.minQty && i.minQty > 0).length;
+  const totalVal  = filtered.reduce((s, i) => s + (i.qty || 0) * (i.price || 0), 0);
+  const cats = [...new Set(inventory.map(i => i.category).filter(Boolean))];
+
+  function fmtVND(v) {
+    if (!v) return '—';
+    if (v >= 1_000_000_000) return (v / 1_000_000_000).toFixed(1) + ' tỷ';
+    if (v >= 1_000_000) return (v / 1_000_000).toFixed(0) + ' tr';
+    return v.toLocaleString('vi-VN') + 'đ';
+  }
 
   const handleSave = (form) => {
     if (editing) {
-      setInventory(
-        inventory.map(i =>
-          i.id === editing.id ? { ...editing, ...form } : i
-        )
-      );
+      setInventory(inventory.map(i => i.id === editing.id ? { ...editing, ...form } : i));
     } else {
-      setInventory([
-        ...inventory,
-        {
-          ...form,
-          id: String(Date.now()),
-        },
-      ]);
+      setInventory([...inventory, { ...form, id: String(Date.now()) }]);
     }
-
     setShowForm(false);
     setEditing(null);
   };
 
+  const handleDelete = async (item) => {
+    if (window.confirm(`Xoá "${item.name}"?`)) {
+      setInventory(inventory.filter(x => x.id !== item.id));
+    }
+  };
+
   return (
     <div>
-      <PropFilterBar
-        props={properties}
-        selected={selProp}
-        onSelect={setSelProp}
-      />
+      {/* Low stock alert */}
+      {lowStock > 0 && (
+        <div style={{
+          background: '#FAEEDA', border: '1px solid #FAC775', borderRadius: 10,
+          padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 13, color: '#854F0B',
+        }}>
+          ⚠ <strong>{lowStock} vật tư</strong> tồn kho dưới mức tối thiểu — cần đặt hàng bổ sung
+        </div>
+      )}
+
+      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
 
       <div className="panel">
         <div className="panel-header">
-          <span className="panel-title">
-            Kho vật tư
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="panel-title">Kho vật tư</span>
+            <select className="select" value={selCat} onChange={e => setSelCat(e.target.value)} style={{ fontSize: 12 }}>
+              <option value="all">Tất cả danh mục</option>
+              {cats.map(c => <option key={c}>{c}</option>)}
+            </select>
+            {totalVal > 0 && (
+              <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 4 }}>
+                Tổng giá trị: <strong style={{ color: 'var(--text)' }}>{fmtVND(totalVal)}</strong>
+              </span>
+            )}
+          </div>
 
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setEditing(null);
-              setShowForm(true);
-            }}
-          >
+          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
             <Plus size={14} /> Thêm vật tư
           </button>
         </div>
@@ -1066,51 +1139,52 @@ export function Inventory({ properties, inventory, setInventory }) {
                 <th>Mã</th>
                 <th>Tên</th>
                 <th>Danh mục</th>
-                <th>Tồn kho</th>
-                <th>Tối thiểu</th>
+                <th style={{ textAlign: 'right' }}>Tồn kho</th>
+                <th style={{ textAlign: 'right' }}>Tối thiểu</th>
                 <th>Đơn vị</th>
+                <th style={{ textAlign: 'right' }}>Đơn giá</th>
+                <th style={{ textAlign: 'right' }}>Tổng</th>
                 <th></th>
               </tr>
             </thead>
-
             <tbody>
               {filtered.map(item => {
                 const p = properties.find(x => Number(x.id) === Number(item.pid));
+                const isLow = item.qty <= item.minQty && item.minQty > 0;
+                const rowVal = (item.qty || 0) * (item.price || 0);
 
                 return (
-                  <tr key={item.id}>
-                    <td>{p?.city || p?.name || '—'}</td>
-                    <td>{item.code}</td>
-                    <td>{item.name}</td>
-                    <td>{item.category}</td>
-                    <td>{item.qty}</td>
-                    <td>{item.minQty}</td>
-                    <td>{item.unit}</td>
-
+                  <tr key={item.id} style={isLow ? { background: '#fffaf0' } : {}}>
+                    <td>
+                      {p ? (
+                        <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>
+                          {p.city}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{item.code}</td>
+                    <td style={{ fontWeight: 500 }}>{item.name}</td>
+                    <td><span className="chip chip-blue" style={{ fontSize: 10 }}>{item.category}</span></td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span style={{
+                        fontWeight: 600,
+                        color: isLow ? '#A32D2D' : 'var(--text)',
+                        background: isLow ? '#FCEBEB' : 'transparent',
+                        padding: isLow ? '2px 7px' : '0',
+                        borderRadius: isLow ? 20 : 0,
+                      }}>
+                        {item.qty}
+                        {isLow && ' ⚠'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--text3)', fontSize: 12 }}>{item.minQty}</td>
+                    <td style={{ fontSize: 12 }}>{item.unit}</td>
+                    <td style={{ textAlign: 'right', fontSize: 12 }}>{item.price ? fmtVND(item.price) : '—'}</td>
+                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text2)' }}>{rowVal > 0 ? fmtVND(rowVal) : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button
-                          className="btn btn-sm btn-icon"
-                          onClick={() => {
-                            setEditing(item);
-                            setShowForm(true);
-                          }}
-                        >
-                          <Pencil size={12} />
-                        </button>
-
-                        <button
-                          className="btn btn-sm btn-icon btn-danger"
-                          onClick={() => {
-                            if (confirm('Xoá vật tư này?')) {
-                              setInventory(
-                                inventory.filter(x => x.id !== item.id)
-                              );
-                            }
-                          }}
-                        >
-                          <Trash2 size={12} />
-                        </button>
+                        <button className="btn btn-sm btn-icon" onClick={() => { setEditing(item); setShowForm(true); }}><Pencil size={12} /></button>
+                        <button className="btn btn-sm btn-icon btn-danger" onClick={() => handleDelete(item)}><Trash2 size={12} /></button>
                       </div>
                     </td>
                   </tr>
@@ -1124,20 +1198,14 @@ export function Inventory({ properties, inventory, setInventory }) {
       {showForm && (
         <Modal
           title={editing?.id ? 'Sửa vật tư' : 'Thêm vật tư'}
-          onClose={() => {
-            setShowForm(false);
-            setEditing(null);
-          }}
+          onClose={() => { setShowForm(false); setEditing(null); }}
           footer={null}
         >
           <InventoryForm
             initial={editing}
             properties={properties}
             onSave={handleSave}
-            onClose={() => {
-              setShowForm(false);
-              setEditing(null);
-            }}
+            onClose={() => { setShowForm(false); setEditing(null); }}
           />
         </Modal>
       )}

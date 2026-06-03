@@ -102,6 +102,12 @@ export const saveInventory = (data) => saveCollection("inventory", data);
 export const getCompanies = () => getCollection("companies");
 export const saveCompanies = (data) => saveCollection("companies", data);
 
+export const getAircons  = () => getCollection("aircons");
+export const saveAircons = (data) => saveCollection("aircons", data);
+
+export const getAcHistory  = () => getCollection("ac_history");
+export const saveAcHistory = (data) => saveCollection("ac_history", data);
+
 // ================= LOGIN COMPANY CHECK =================
 
 export async function findStaffByEmailAndCompany(email, companyId) {

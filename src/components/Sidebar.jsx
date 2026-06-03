@@ -1,26 +1,13 @@
 // src/components/Sidebar.jsx
 import { useState, useEffect } from 'react';
-
 import {
-  Building2,
-  Package,
-  Wrench,
-  TrendingDown,
-  Users,
-  LayoutDashboard,
-  Archive,
-  PlusCircle,
-  Settings,
-  Wind,
-  X,
-  Building
+  Building2, Package, Wrench, TrendingDown, Users,
+  LayoutDashboard, Archive, PlusCircle, Settings, Wind,
+  X, Building, ArrowLeft, ChevronRight, Shield,
 } from 'lucide-react';
+import { useTranslation, LanguageSwitcher } from '../i18n/useTranslation.jsx';
 
-import {
-  useTranslation,
-  LanguageSwitcher
-} from '../i18n/useTranslation.jsx';
-
+/* ── NAV DEFINITIONS ──────────────────────────── */
 const NAV_ITEMS = [
   { id: 'overview',     icon: LayoutDashboard, key: 'nav.overview' },
   { id: 'properties',   icon: Building2,       key: 'nav.properties' },
@@ -40,269 +27,209 @@ const BOTTOM_NAV = [
   { id: 'inventory',   icon: Archive,         key: 'nav.inventory' },
 ];
 
+/* ── PERMISSION HELPER ────────────────────────── */
+function canAccess(pageId, currentUser) {
+  if (!currentUser) return false;
+  const p = currentUser.permission;
+  if (currentUser.isSuperAdmin || p === 'super_admin') return true;
+
+  const byPerm = {
+    viewer:       ['overview', 'assets', 'properties', 'aircon', 'depreciation'],
+    staff:        ['overview', 'assets', 'properties', 'aircon', 'depreciation', 'maintenance', 'inventory'],
+    manager:      ['overview', 'assets', 'properties', 'aircon', 'depreciation', 'maintenance', 'inventory', 'staff'],
+    admin:        ['overview', 'assets', 'properties', 'aircon', 'depreciation', 'maintenance', 'inventory', 'staff', 'settings'],
+    company_admin:['overview', 'assets', 'properties', 'aircon', 'depreciation', 'maintenance', 'inventory', 'staff', 'settings'],
+  };
+  return (byPerm[p] || []).includes(pageId);
+}
+
+const PERM_LABELS = {
+  super_admin:   'Super Admin',
+  company_admin: 'Company Admin',
+  admin:         'Admin',
+  manager:       'Manager',
+  staff:         'Staff',
+  viewer:        'Viewer',
+};
+
+/* ── MAIN COMPONENT ───────────────────────────── */
 export default function Sidebar({
-  page,
-  onNavigate,
-  properties,
-  alerts,
-  mobileOpen,
-  onCloseMobile,
-  currentUser
+  page, onNavigate, properties, alerts,
+  mobileOpen, onCloseMobile, currentUser,
+  viewingCompany, onExitCompany,
 }) {
   const { t } = useTranslation();
 
   const [settings, setSettings] = useState(() => {
-    try {
-      const r = localStorage.getItem('app_settings');
-      return r ? JSON.parse(r) : {};
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(localStorage.getItem('app_settings') || '{}'); }
+    catch { return {}; }
   });
 
   useEffect(() => {
-    const handler = (e) => setSettings(e.detail);
-
-    window.addEventListener('settingsChanged', handler);
-
-    return () =>
-      window.removeEventListener('settingsChanged', handler);
+    const h = e => setSettings(e.detail);
+    window.addEventListener('settingsChanged', h);
+    return () => window.removeEventListener('settingsChanged', h);
   }, []);
 
-  const companyName =
-    settings.companyName || 'AssetHub';
+  const isSuperAdmin   = currentUser?.isSuperAdmin || currentUser?.permission === 'super_admin';
+  const isCompanyAdmin = ['company_admin', 'admin'].includes(currentUser?.permission);
+  const inCompanyView  = isSuperAdmin && !!viewingCompany;
 
-  const tagline =
-    settings.companyTagline || 'Asset Management SaaS';
+  const logoColor  = settings.logoColor || '#1D9E75';
+  const brandName  = inCompanyView ? viewingCompany.name : (isSuperAdmin ? 'AssetHub' : (settings.companyName || 'AssetHub'));
+  const brandSub   = inCompanyView ? viewingCompany.id   : (isSuperAdmin ? 'Platform Admin' : (settings.companyTagline || 'Asset Management SaaS'));
+  const brandLetter= (brandName || 'A').slice(0, 1).toUpperCase();
 
-  const logoText =
-    settings.logoText ||
-    companyName.slice(0, 1).toUpperCase();
+  const handleNav = id => { onNavigate(id); onCloseMobile?.(); };
 
-  const logoColor =
-    settings.logoColor || '#1D9E75';
-
-  const handleNav = (id) => {
-    onNavigate(id);
-
-    if (onCloseMobile) {
-      onCloseMobile();
-    }
-  };
+  const visibleNav = NAV_ITEMS.filter(item =>
+    isSuperAdmin ? true : canAccess(item.id, currentUser)
+  );
 
   return (
     <>
-      {/* SIDEBAR */}
+      {/* ════ SIDEBAR ════ */}
       <aside className={`sidebar ${mobileOpen ? 'mobile-open' : ''}`}>
 
-        {/* LOGO */}
-        <div
-          className="sidebar-logo"
-          style={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between'
-          }}
-        >
-          <div>
-            <div
-              className="sidebar-logo-icon"
-              style={{ background: logoColor }}
+        {/* Super Admin – Platform View banner */}
+        {isSuperAdmin && !inCompanyView && (
+          <div style={{
+            background: 'linear-gradient(135deg,#0F6E56,#1D9E75)',
+            padding: '7px 14px', display: 'flex', alignItems: 'center', gap: 6,
+          }}>
+            <Shield size={12} color='rgba(255,255,255,0.9)' />
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.9)', fontWeight: 700 }}>
+              Super Admin — Platform
+            </span>
+          </div>
+        )}
+
+        {/* Viewing Company banner */}
+        {inCompanyView && (
+          <div style={{ background: 'linear-gradient(135deg,#185FA5,#1e72c8)', padding: '8px 12px' }}>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', marginBottom: 5 }}>
+              Đang xem công ty:
+            </div>
+            <button onClick={onExitCompany} style={{
+              width: '100%', background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)', borderRadius: 7,
+              cursor: 'pointer', color: 'white', fontSize: 11, fontWeight: 700,
+              padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5,
+              fontFamily: 'var(--font)', transition: 'background 0.15s',
+            }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
             >
-              <span
-                style={{
-                  color: 'white',
-                  fontWeight: 700,
-                  fontSize: 16
-                }}
-              >
-                {logoText}
-              </span>
-            </div>
+              <ArrowLeft size={11} /> Thoát về Platform
+            </button>
+          </div>
+        )}
 
-            <div className="sidebar-brand">
-              {companyName}
+        {/* Logo block */}
+        <div className="sidebar-logo" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="sidebar-logo-icon" style={{ background: inCompanyView ? '#185FA5' : logoColor }}>
+              <span style={{ color: 'white', fontWeight: 700, fontSize: 16 }}>{brandLetter}</span>
             </div>
-
-            <div className="sidebar-tagline">
-              {tagline}
+            <div className="sidebar-brand" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {brandName}
             </div>
+            <div className="sidebar-tagline">{brandSub}</div>
 
-            {currentUser?.companyId && (
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 11,
-                  color: 'var(--text3)',
-                  background: 'var(--bg2)',
-                  padding: '4px 8px',
-                  borderRadius: 20,
-                  display: 'inline-block'
-                }}
-              >
+            {/* Company ID chip for non-super-admin */}
+            {!isSuperAdmin && currentUser?.companyId && (
+              <div style={{ marginTop: 5, fontSize: 10, color: 'var(--text3)', background: 'var(--bg2)', padding: '2px 8px', borderRadius: 20, display: 'inline-block' }}>
                 {currentUser.companyId}
+              </div>
+            )}
+
+            {/* Role chip */}
+            {currentUser?.permission && !isSuperAdmin && (
+              <div style={{ marginTop: 3, fontSize: 10, fontWeight: 700, color: isCompanyAdmin ? '#185FA5' : '#534AB7', background: isCompanyAdmin ? '#E6F1FB' : '#EEEDFE', padding: '2px 8px', borderRadius: 20, display: 'inline-block' }}>
+                {PERM_LABELS[currentUser.permission] || currentUser.permission}
               </div>
             )}
           </div>
 
-          {/* CLOSE MOBILE */}
-          <button
-            onClick={onCloseMobile}
-            className="sidebar-close-btn"
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: 4,
-              color: 'var(--text3)',
-              display: 'none'
-            }}
-          >
+          <button onClick={onCloseMobile} className="sidebar-close-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: 'var(--text3)', display: 'none' }}>
             <X size={18} />
           </button>
         </div>
 
-        {/* MAIN NAV */}
+        {/* Main nav */}
         <div className="sidebar-section">
+          <div className="sidebar-section-label">{t('nav.mainMenu')}</div>
 
-          <div className="sidebar-section-label">
-            {t('nav.mainMenu')}
-          </div>
-
-          {NAV_ITEMS.map(item => (
-            <div
-              key={item.id}
-              className={`nav-item ${page === item.id ? 'active' : ''}`}
-              onClick={() => handleNav(item.id)}
-            >
+          {visibleNav.map(item => (
+            <div key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => handleNav(item.id)}>
               <item.icon size={16} />
-
               <span>{t(item.key)}</span>
-
-              {item.badge && alerts > 0 && (
-                <span className="badge">
-                  {alerts}
-                </span>
-              )}
+              {item.badge && alerts > 0 && <span className="badge">{alerts}</span>}
             </div>
           ))}
 
-          {/* SUPER ADMIN */}
-          {currentUser?.isSuperAdmin && (
-            <div
-              className={`nav-item ${page === 'companies' ? 'active' : ''}`}
-              onClick={() => handleNav('companies')}
-            >
+          {/* Companies — super admin, platform view only */}
+          {isSuperAdmin && !inCompanyView && (
+            <div className={`nav-item ${page === 'companies' ? 'active' : ''}`} onClick={() => handleNav('companies')}>
               <Building size={16} />
-
-              <span>Công ty</span>
+              <span>Quản lý công ty</span>
             </div>
           )}
         </div>
 
-        {/* BRANCHES */}
-        <div className="sidebar-props">
-
-          <div className="sidebar-props-label">
-            {t('nav.branches')}
+        {/* Branches — show inside company context */}
+        {(inCompanyView || !isSuperAdmin) && properties.length > 0 && (
+          <div className="sidebar-props">
+            <div className="sidebar-props-label">{t('nav.branches')}</div>
+            {properties.map(p => (
+              <div key={p.id} className="prop-nav-item" onClick={() => handleNav('assets')}>
+                <div className="prop-dot" style={{ background: p.color }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {p.city || p.name}
+                </span>
+                <ChevronRight size={10} style={{ color: 'var(--text3)', flexShrink: 0 }} />
+              </div>
+            ))}
+            {(isSuperAdmin || isCompanyAdmin) && (
+              <div className="prop-nav-item" style={{ color: 'var(--text3)', marginTop: 4 }} onClick={() => handleNav('properties')}>
+                <PlusCircle size={13} />
+                <span>{t('nav.addProperty')}</span>
+              </div>
+            )}
           </div>
+        )}
 
-          {properties.map(p => (
-            <div
-              key={p.id}
-              className="prop-nav-item"
-              onClick={() => handleNav('assets')}
-            >
-              <div
-                className="prop-dot"
-                style={{ background: p.color }}
-              />
-
-              <span
-                style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {p.city || p.name}
-              </span>
+        {/* Footer */}
+        <div style={{ marginTop: 'auto', padding: '12px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ marginBottom: 8 }}><LanguageSwitcher /></div>
+          {(isSuperAdmin || isCompanyAdmin || canAccess('settings', currentUser)) && (
+            <div className={`nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => handleNav('settings')}>
+              <Settings size={16} />
+              <span>{t('nav.settings')}</span>
             </div>
-          ))}
-
-          <div
-            className="prop-nav-item"
-            style={{
-              color: 'var(--text3)',
-              marginTop: 4
-            }}
-            onClick={() => handleNav('properties')}
-          >
-            <PlusCircle size={13} />
-
-            <span>
-              {t('nav.addProperty')}
-            </span>
-          </div>
-        </div>
-
-        {/* FOOTER */}
-        <div
-          style={{
-            marginTop: 'auto',
-            padding: '12px',
-            borderTop: '1px solid var(--border)'
-          }}
-        >
-          <div style={{ marginBottom: 8 }}>
-            <LanguageSwitcher />
-          </div>
-
-          <div
-            className={`nav-item ${page === 'settings' ? 'active' : ''}`}
-            onClick={() => handleNav('settings')}
-          >
-            <Settings size={16} />
-
-            <span>
-              {t('nav.settings')}
-            </span>
-          </div>
+          )}
         </div>
       </aside>
 
-      {/* MOBILE BOTTOM NAV */}
+      {/* ════ MOBILE BOTTOM NAV ════ */}
       <nav className="bottom-nav">
-
-        {BOTTOM_NAV.map(item => (
-          <div
-            key={item.id}
-            className={`bottom-nav-item ${page === item.id ? 'active' : ''}`}
-            onClick={() => onNavigate(item.id)}
-          >
-            {item.badge && alerts > 0 && (
-              <span className="nav-badge">
-                {alerts}
-              </span>
-            )}
-
+        {BOTTOM_NAV.filter(item => isSuperAdmin || canAccess(item.id, currentUser)).map(item => (
+          <div key={item.id} className={`bottom-nav-item ${page === item.id ? 'active' : ''}`} onClick={() => onNavigate(item.id)}>
+            {item.badge && alerts > 0 && <span className="nav-badge">{alerts}</span>}
             <item.icon />
-
             <span>{t(item.key)}</span>
           </div>
         ))}
 
-        {/* MORE */}
-        <div
-          className="bottom-nav-item"
-          onClick={() => onNavigate('settings')}
-        >
-          <Settings />
-
-          <span>
-            {t('nav.settings')}
-          </span>
-        </div>
+        {isSuperAdmin && !inCompanyView ? (
+          <div className="bottom-nav-item" onClick={() => onNavigate('companies')}>
+            <Building /><span>Công ty</span>
+          </div>
+        ) : (
+          <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
+            <Settings /><span>{t('nav.settings')}</span>
+          </div>
+        )}
       </nav>
     </>
   );

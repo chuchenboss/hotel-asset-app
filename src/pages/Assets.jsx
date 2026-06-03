@@ -255,26 +255,35 @@ export default function Assets({ properties, assets, setAssets, initialPropId })
   const [search, setSearch] = useState('');
   const [selCat, setSelCat] = useState('');
   const [selStatus, setSelStatus] = useState('');
+  const [sortBy, setSortBy] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  const filtered = assets.filter(a => {
-    if (selProp !== 'all' && Number(a.pid) !== Number(selProp)) return false;
-    if (selCat && a.category !== selCat) return false;
-    if (selStatus && a.status !== selStatus) return false;
+  const filtered = assets
+    .filter(a => {
+      if (selProp !== 'all' && Number(a.pid) !== Number(selProp)) return false;
+      if (selCat && a.category !== selCat) return false;
+      if (selStatus && a.status !== selStatus) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return (
+          String(a.name || '').toLowerCase().includes(q) ||
+          String(a.code || '').toLowerCase().includes(q) ||
+          String(a.location || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'value_desc') return (Number(b.value) || 0) - (Number(a.value) || 0);
+      if (sortBy === 'value_asc')  return (Number(a.value) || 0) - (Number(b.value) || 0);
+      if (sortBy === 'year_desc')  return (b.year || 0) - (a.year || 0);
+      if (sortBy === 'year_asc')   return (a.year || 0) - (b.year || 0);
+      if (sortBy === 'name')       return String(a.name).localeCompare(String(b.name), 'vi');
+      return 0;
+    });
 
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        String(a.name || '').toLowerCase().includes(q) ||
-        String(a.code || '').toLowerCase().includes(q)
-      );
-    }
-
-    return true;
-  });
-
-  const totalVal = filtered.reduce((s, a) => s + (a.value || 0), 0);
+  const totalVal = filtered.reduce((s, a) => s + (Number(a.value) || 0), 0);
 
   const handleSave = (form) => {
     if (editing) {
@@ -300,7 +309,7 @@ export default function Assets({ properties, assets, setAssets, initialPropId })
   };
 
   const handleDelete = (id) => {
-    if (confirm(t('assets.deleteConfirm'))) {
+    if (window.confirm(t('assets.deleteConfirm'))) {
       setAssets(assets.filter(a => a.id !== id));
     }
   };
@@ -387,6 +396,19 @@ export default function Assets({ properties, assets, setAssets, initialPropId })
               {STATUSES.map(s => (
                 <option key={s}>{s}</option>
               ))}
+            </select>
+
+            <select
+              className="select"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+            >
+              <option value="">Sắp xếp...</option>
+              <option value="value_desc">Giá trị ↓</option>
+              <option value="value_asc">Giá trị ↑</option>
+              <option value="year_desc">Mới nhất</option>
+              <option value="year_asc">Cũ nhất</option>
+              <option value="name">Tên A→Z</option>
             </select>
 
             <button

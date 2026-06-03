@@ -1,7 +1,8 @@
 // src/App.jsx
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { Menu } from 'lucide-react';
+import { Menu, LogOut, ArrowLeft, Building2 } from 'lucide-react';
+import { useToast } from './components/Toast.jsx';
 
 import Sidebar from './components/Sidebar.jsx';
 import ExportButton from './components/ExportButton.jsx';
@@ -22,12 +23,16 @@ import {
   getStaff,
   getInventory,
   getCompanies,
+  getAircons,
+  getAcHistory,
   saveCompanies,
   saveProperties,
   saveAssets,
   saveMaintenance,
   saveStaff,
   saveInventory,
+  saveAircons,
+  saveAcHistory,
   migrateLocalToFirebase,
 } from './data/firebase.js';
 
@@ -53,6 +58,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { t } = useTranslation();
+  const toast = useToast();
 
   const [allProperties, setAllProperties] = useState([]);
   const [allAssets, setAllAssets] = useState([]);
@@ -60,6 +66,8 @@ export default function App() {
   const [allStaff, setAllStaff] = useState([]);
   const [allInventory, setAllInventory] = useState([]);
   const [companies, setCompaniesState] = useState([]);
+  const [allAircons, setAllAircons] = useState([]);
+  const [allAcHistory, setAllAcHistory] = useState([]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -80,13 +88,15 @@ export default function App() {
       setLoading(true);
 
       try {
-        const [p, a, m, s, i, c] = await Promise.all([
+        const [p, a, m, s, i, c, ac, ach] = await Promise.all([
           getProperties(),
           getAssets(),
           getMaintenance(),
           getStaff(),
           getInventory(),
           getCompanies(),
+          getAircons(),
+          getAcHistory(),
         ]);
 
         setAllProperties(p || []);
@@ -95,9 +105,11 @@ export default function App() {
         setAllStaff((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
         setAllInventory((i || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
         setCompaniesState(c || []);
+        setAllAircons(ac || []);
+        setAllAcHistory(ach || []);
       } catch (err) {
         console.error('Load Firebase lỗi:', err);
-        alert('Không tải được dữ liệu Firebase: ' + err.message);
+        toast.error('Không tải được dữ liệu Firebase: ' + err.message);
       }
 
       setLoading(false);
@@ -106,38 +118,61 @@ export default function App() {
     loadAll();
   }, [user]);
 
+  // Super admin: which company are we currently viewing (null = platform view)
+  const [viewingCompany, setViewingCompany] = useState(null);
+
   const currentUser = allStaff.find(s =>
     String(s.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
   );
 
   const superAdmin = isSuperAdminUser(user, currentUser);
+
+  // The "active" companyId for data filtering:
+  // - Regular user: their own companyId
+  // - Super Admin in platform view: null (no filter yet → companies page)
+  // - Super Admin viewing a company: viewingCompany.id
   const currentCompanyId = superAdmin
-    ? 'super-admin'
-    : currentUser?.companyId || localStorage.getItem('companyId');
+    ? (viewingCompany ? viewingCompany.id : null)
+    : (currentUser?.companyId || localStorage.getItem('companyId'));
 
   const filterByCompany = (items) => {
-    if (superAdmin) return items;
+    if (superAdmin && !viewingCompany) return items; // platform view – show all for stats
+    if (superAdmin && viewingCompany) {
+      return items.filter(x => String(x.companyId || '') === String(viewingCompany.id));
+    }
     return items.filter(x => String(x.companyId || '') === String(currentCompanyId || ''));
   };
 
   const properties = filterByCompany(allProperties);
-  const assets = filterByCompany(allAssets);
-  const maintenance = filterByCompany(allMaintenance);
-  const staff = filterByCompany(allStaff);
-  const inventory = filterByCompany(allInventory);
+  const assets     = filterByCompany(allAssets);
+  const maintenance= filterByCompany(allMaintenance);
+  const staff      = filterByCompany(allStaff);
+  const inventory  = filterByCompany(allInventory);
+
+  // When super admin enters a company, auto-navigate to overview
+  const handleEnterCompany = (company) => {
+    setViewingCompany(company);
+    setPage('overview');
+    setSidebarOpen(false);
+  };
+
+  const handleExitCompany = () => {
+    setViewingCompany(null);
+    setPage('companies');
+    setSidebarOpen(false);
+  };
 
   const addCompanyId = (item) => {
+    if (superAdmin && viewingCompany) {
+      return { ...item, companyId: item.companyId || viewingCompany.id };
+    }
     if (superAdmin) return item;
-
-    return {
-      ...item,
-      companyId: item.companyId || currentCompanyId,
-    };
+    return { ...item, companyId: item.companyId || currentCompanyId };
   };
 
   const setProperties = async (d) => {
     const scopedData = d.map(addCompanyId);
-    const merged = superAdmin
+    const merged = (superAdmin && !viewingCompany)
       ? scopedData
       : [
           ...allProperties.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
@@ -149,7 +184,7 @@ export default function App() {
     try {
       await saveProperties(merged);
     } catch (err) {
-      alert('Lỗi lưu cơ sở: ' + err.message);
+      toast.error('Lỗi lưu cơ sở: ' + err.message);
     }
   };
 
@@ -159,7 +194,7 @@ export default function App() {
       pid: x.pid ? Number(x.pid) : x.pid,
     }));
 
-    const merged = superAdmin
+    const merged = (superAdmin && !viewingCompany)
       ? scopedData
       : [
           ...allAssets.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
@@ -171,13 +206,13 @@ export default function App() {
     try {
       await saveAssets(merged);
     } catch (err) {
-      alert('Lỗi lưu tài sản: ' + err.message);
+      toast.error('Lỗi lưu tài sản: ' + err.message);
     }
   };
 
   const setMaintenance = async (d) => {
     const scopedData = d.map(addCompanyId);
-    const merged = superAdmin
+    const merged = (superAdmin && !viewingCompany)
       ? scopedData
       : [
           ...allMaintenance.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
@@ -189,7 +224,7 @@ export default function App() {
     try {
       await saveMaintenance(merged);
     } catch (err) {
-      alert('Lỗi lưu bảo trì: ' + err.message);
+      toast.error('Lỗi lưu bảo trì: ' + err.message);
     }
   };
 
@@ -200,7 +235,7 @@ export default function App() {
       companyId: superAdmin ? x.companyId : currentCompanyId,
     }));
 
-    const merged = superAdmin
+    const merged = (superAdmin && !viewingCompany)
       ? scopedData
       : [
           ...allStaff.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
@@ -212,7 +247,7 @@ export default function App() {
     try {
       await saveStaff(merged);
     } catch (err) {
-      alert('Lỗi lưu nhân viên: ' + err.message);
+      toast.error('Lỗi lưu nhân viên: ' + err.message);
     }
   };
 
@@ -222,7 +257,7 @@ export default function App() {
       pid: x.pid ? Number(x.pid) : x.pid,
     }));
 
-    const merged = superAdmin
+    const merged = (superAdmin && !viewingCompany)
       ? scopedData
       : [
           ...allInventory.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
@@ -234,7 +269,7 @@ export default function App() {
     try {
       await saveInventory(merged);
     } catch (err) {
-      alert('Lỗi lưu kho vật tư: ' + err.message);
+      toast.error('Lỗi lưu kho vật tư: ' + err.message);
     }
   };
 
@@ -244,7 +279,7 @@ export default function App() {
     try {
       await saveCompanies(d);
     } catch (err) {
-      alert('Lỗi lưu công ty: ' + err.message);
+      toast.error('Lỗi lưu công ty: ' + err.message);
     }
   };
 
@@ -274,7 +309,15 @@ export default function App() {
         return <Assets properties={properties} assets={assets} setAssets={setAssets} initialPropId={initPropId} />;
 
       case 'aircon':
-        return <AirCon properties={properties} />;
+        return (
+          <AirCon
+            properties={properties}
+            aircons={allAircons}
+            acHistory={allAcHistory}
+            onSaveAircons={async (d) => { setAllAircons(d); try { await saveAircons(d); } catch(e) { console.error(e); } }}
+            onSaveHistory={async (d) => { setAllAcHistory(d); try { await saveAcHistory(d); } catch(e) { console.error(e); } }}
+          />
+        );
 
       case 'maintenance':
         return <Maintenance properties={properties} assets={assets} maintenance={maintenance} setMaintenance={setMaintenance} />;
@@ -308,6 +351,10 @@ export default function App() {
           <Companies
             companies={companies}
             setCompanies={setCompanies}
+            allProperties={allProperties}
+            allAssets={allAssets}
+            allStaff={allStaff}
+            onEnterCompany={handleEnterCompany}
           />
         );
 
@@ -365,61 +412,63 @@ export default function App() {
           isSuperAdmin: superAdmin,
           permission: superAdmin ? 'super_admin' : currentUser?.permission,
         }}
+        viewingCompany={viewingCompany}
+        onExitCompany={handleExitCompany}
       />
 
-      <div className="main">
+      {/* ── MAIN CONTENT ── */}
+      <div className="main-content">
+        {/* Top bar */}
         <div className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}>
-              <Menu size={18} />
-            </button>
+          <button
+            className="btn btn-sm btn-icon"
+            style={{ display: 'none' }}
+            id="sidebar-toggle"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu size={18} />
+          </button>
 
-            <div>
-              <div className="topbar-title">{pageInfo.title}</div>
-              <div className="topbar-sub">{pageInfo.sub}</div>
+          <button
+            className="topbar-menu-btn"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu size={20} />
+          </button>
+
+          <div style={{ flex: 1 }}>
+            <div className="topbar-title">
+              {typeof pageInfo === 'object' ? pageInfo.title : page}
             </div>
+            {typeof pageInfo === 'object' && pageInfo.sub && (
+              <div className="topbar-sub">{pageInfo.sub}</div>
+            )}
           </div>
 
-          <div className="topbar-actions">
-            <span style={{
-              fontSize: 12,
-              color: 'var(--text3)',
-              background: 'var(--bg)',
-              padding: '5px 12px',
-              borderRadius: 20,
-              border: '1px solid var(--border)',
-              whiteSpace: 'nowrap',
-            }}>
-              {user.email}
-            </span>
-
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ExportButton
               properties={properties}
               assets={assets}
               maintenance={maintenance}
-              inventory={inventory}
               staff={staff}
+              inventory={inventory}
             />
 
-            <span style={{
-              fontSize: 12,
-              color: 'var(--text3)',
-              background: 'var(--bg)',
-              padding: '5px 12px',
-              borderRadius: 20,
-              border: '1px solid var(--border)',
-              whiteSpace: 'nowrap',
-            }}>
-              {new Date().toLocaleDateString('vi-VN')}
-            </span>
-
-            <button className="btn" onClick={() => signOut(auth)}>
-              Đăng xuất
+            <button
+              className="btn btn-sm"
+              onClick={() => signOut(auth)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text3)' }}
+            >
+              <LogOut size={14} />
+              <span style={{ fontSize: 12 }}>{t('common.logout')}</span>
             </button>
           </div>
         </div>
 
-        <div className="content">{renderPage()}</div>
+        {/* Page content */}
+        <div className="page-content">
+          {renderPage()}
+        </div>
       </div>
     </div>
   );

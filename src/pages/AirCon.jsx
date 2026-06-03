@@ -250,18 +250,34 @@ const DEFAULT_HISTORY = [
 ];
 
 // ---- MAIN COMPONENT ----
-export default function AirCon({ properties }) {
+export default function AirCon({ properties, aircons: airconsProp, acHistory: acHistoryProp, onSaveAircons, onSaveHistory }) {
   const { t, lang } = useTranslation();
 
+  // Use Firebase data if available, fall back to localStorage for first load
   const [acs, setAcs] = useState(() => {
+    if (airconsProp && airconsProp.length > 0) return airconsProp;
     try { const r = localStorage.getItem('aircons'); return r ? JSON.parse(r) : DEFAULT_ACS; } catch { return DEFAULT_ACS; }
   });
   const [history, setHistory] = useState(() => {
+    if (acHistoryProp && acHistoryProp.length > 0) return acHistoryProp;
     try { const r = localStorage.getItem('ac_history'); return r ? JSON.parse(r) : DEFAULT_HISTORY; } catch { return DEFAULT_HISTORY; }
   });
 
-  const saveAcs     = d => { setAcs(d);     localStorage.setItem('aircons',    JSON.stringify(d)); };
-  const saveHistory = d => { setHistory(d); localStorage.setItem('ac_history', JSON.stringify(d)); };
+  // Sync from Firebase when props update
+  useState(() => {
+    if (airconsProp?.length > 0) setAcs(airconsProp);
+  });
+
+  const saveAcs = d => {
+    setAcs(d);
+    if (onSaveAircons) onSaveAircons(d);
+    else localStorage.setItem('aircons', JSON.stringify(d));
+  };
+  const saveHistory = d => {
+    setHistory(d);
+    if (onSaveHistory) onSaveHistory(d);
+    else localStorage.setItem('ac_history', JSON.stringify(d));
+  };
 
   const [selProp,   setSelProp]   = useState('all');
   const [selStatus, setSelStatus] = useState('all');
