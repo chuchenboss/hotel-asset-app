@@ -39,7 +39,7 @@ export default function Overview({ properties, assets, maintenance }) {
   ).length;
 
   const propStats = useMemo(() => properties.map(p => {
-    const pa     = assets.filter(a => a.pid === p.id);
+    const pa     = assets.filter(a => String(a.pid) === String(p.id));
     const val    = pa.reduce((s, a) => s + (Number(a.value) || 0), 0);
     const issues = pa.filter(a => a.status !== 'Đang dùng' && a.status !== 'In Use').length;
     const dep    = pa.filter(a => (2026 - a.year) >= a.lifespan).length;
@@ -185,7 +185,7 @@ export default function Overview({ properties, assets, maintenance }) {
               {t('overview.noUpcoming')}
             </div>
           ) : recentMaint.map(m => {
-            const p = properties.find(x => x.id === m.pid);
+            const p = properties.find(x => String(x.id) === String(m.pid));
             const daysLeft = Math.ceil((new Date(m.date) - new Date()) / 86400000);
             return (
               <div key={m.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -220,7 +220,7 @@ export default function Overview({ properties, assets, maintenance }) {
           </div>
           <div style={{ display: 'flex', gap: 8, padding: '12px 16px', flexWrap: 'wrap' }}>
             {expiredAssets.slice(0, 8).map(a => {
-              const p = properties.find(x => x.id === a.pid);
+              const p = properties.find(x => String(x.id) === String(a.pid));
               return (
                 <span key={a.id} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 20, background: '#FCEBEB', color: 'var(--red)', border: '1px solid #F7C1C1' }}>
                   {p?.city && `[${p.city}] `}{a.name}
