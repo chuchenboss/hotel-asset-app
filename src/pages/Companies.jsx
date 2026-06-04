@@ -8,6 +8,7 @@ import {
 import { Modal, Field } from "../components/UI.jsx";
 import { createCompanyAdmin } from "../data/firebase.js";
 import { useToast, useConfirm } from "../components/Toast.jsx";
+import { useTranslation } from "../i18n/useTranslation.jsx";
 
 /* ── PLAN CONFIG ─────────────────────────────── */
 const PLANS = {
@@ -17,13 +18,17 @@ const PLANS = {
 };
 
 const STATUS_CFG = {
-  active:  { label: "Hoạt động", color: "#0F6E56", bg: "#E1F5EE", icon: CheckCircle },
-  paused:  { label: "Tạm ngưng", color: "#854F0B", bg: "#FAEEDA", icon: PauseCircle },
-  blocked: { label: "Đã khoá",   color: "#A32D2D", bg: "#FCEBEB", icon: XCircle   },
+  active:  { labelVI: "Hoạt động", labelEN: "Active",  color: "#0F6E56", bg: "#E1F5EE", icon: CheckCircle },
+  paused:  { labelVI: "Tạm ngưng", labelEN: "Paused",  color: "#854F0B", bg: "#FAEEDA", icon: PauseCircle },
+  blocked: { labelVI: "Đã khoá",   labelEN: "Blocked", color: "#A32D2D", bg: "#FCEBEB", icon: XCircle    },
 };
+
+const sl = (cfg, lang) => lang === "en" ? cfg.labelEN : cfg.labelVI;
 
 /* ── COMPANY FORM ────────────────────────────── */
 function CompanyForm({ initial, onSave, onClose }) {
+  const { lang } = useTranslation();
+  const en = lang === "en";
   const empty = {
     id: "", name: "", ownerEmail: "", plan: "pro", status: "active",
     phone: "", address: "", notes: "",
@@ -35,14 +40,14 @@ function CompanyForm({ initial, onSave, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const validate = () => {
-    if (!form.id.trim())         return "Vui lòng nhập Company ID";
-    if (!/^[a-z0-9-]+$/.test(form.id.trim())) return "Company ID chỉ dùng chữ thường, số, dấu -";
-    if (!form.name.trim())       return "Vui lòng nhập tên công ty";
-    if (!form.ownerEmail.trim()) return "Vui lòng nhập Owner Email";
+    if (!form.id.trim())   return en ? "Please enter Company ID" : "Vui lòng nhập Company ID";
+    if (!/^[a-z0-9-]+$/.test(form.id.trim())) return en ? "Company ID: lowercase, numbers, hyphens only" : "Company ID chỉ dùng chữ thường, số, dấu -";
+    if (!form.name.trim()) return en ? "Please enter company name" : "Vui lòng nhập tên công ty";
+    if (!form.ownerEmail.trim()) return en ? "Please enter owner email" : "Vui lòng nhập Owner Email";
     if (!initial) {
-      if (!form.adminName.trim())  return "Vui lòng nhập tên Admin tổng";
-      if (!form.adminEmail.trim()) return "Vui lòng nhập email Admin";
-      if (!form.adminPassword || form.adminPassword.length < 6) return "Mật khẩu phải ≥ 6 ký tự";
+      if (!form.adminName.trim())  return en ? "Please enter admin name" : "Vui lòng nhập tên Admin";
+      if (!form.adminEmail.trim()) return en ? "Please enter admin email" : "Vui lòng nhập email Admin";
+      if (!form.adminPassword || form.adminPassword.length < 6) return en ? "Password must be ≥ 6 chars" : "Mật khẩu phải ≥ 6 ký tự";
     }
     return null;
   };
@@ -50,7 +55,7 @@ function CompanyForm({ initial, onSave, onClose }) {
   const save = async () => {
     const err = validate();
     if (err) return toast.error(err);
-    const cleanCompany = {
+    const clean = {
       id: form.id.trim(), name: form.name.trim(),
       ownerEmail: form.ownerEmail.trim().toLowerCase(),
       plan: form.plan, status: form.status,
@@ -59,46 +64,48 @@ function CompanyForm({ initial, onSave, onClose }) {
     };
     try {
       setSaving(true);
-      await onSave(cleanCompany, !initial ? {
+      await onSave(clean, !initial ? {
         name: form.adminName.trim(),
         email: form.adminEmail.trim().toLowerCase(),
         password: form.adminPassword,
       } : null);
     } catch (e) {
-      toast.error("Lỗi: " + e.message);
-    } finally {
-      setSaving(false);
-    }
+      toast.error((en ? "Error: " : "Lỗi: ") + e.message);
+    } finally { setSaving(false); }
   };
+
+  const sec = (vi, enLabel) => (
+    <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
+      {en ? enLabel : vi}
+    </div>
+  );
 
   return (
     <Modal
-      title={initial ? `Sửa: ${initial.name}` : "Thêm công ty mới"}
+      title={initial ? `${en ? "Edit" : "Sửa"}: ${initial.name}` : (en ? "Add New Company" : "Thêm công ty mới")}
       onClose={onClose}
       footer={<>
-        <button className="btn" onClick={onClose}>Huỷ</button>
+        <button className="btn" onClick={onClose}>{en ? "Cancel" : "Huỷ"}</button>
         <button className="btn btn-primary" disabled={saving} onClick={save}>
-          {saving ? "Đang lưu..." : initial ? "Cập nhật" : "Tạo công ty"}
+          {saving ? (en ? "Saving..." : "Đang lưu...") : initial ? (en ? "Update" : "Cập nhật") : (en ? "Create Company" : "Tạo công ty")}
         </button>
       </>}
     >
-      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 10 }}>
-        Thông tin công ty
-      </div>
+      {sec("Thông tin công ty", "Company Information")}
 
       <Field label="Company ID *">
-        <input className="input" style={{ width: "100%" }} value={form.id}
-          disabled={!!initial}
+        <input className="input" value={form.id} disabled={!!initial}
           onChange={e => set("id", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
-          placeholder="vd: phan-hospitality"
-          style={{ width: "100%", background: initial ? "var(--bg)" : undefined }}
-        />
-        <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 3 }}>Chỉ dùng chữ thường, số, dấu gạch ngang</div>
+          placeholder="e.g. phan-hospitality"
+          style={{ width: "100%", background: initial ? "var(--bg)" : undefined }} />
+        <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 3 }}>
+          {en ? "Lowercase letters, numbers, hyphens only" : "Chỉ dùng chữ thường, số, dấu gạch ngang"}
+        </div>
       </Field>
 
-      <Field label="Tên công ty *">
+      <Field label={en ? "Company Name *" : "Tên công ty *"}>
         <input className="input" style={{ width: "100%" }} value={form.name}
-          onChange={e => set("name", e.target.value)} placeholder="VD: Phan Hospitality JSC" />
+          onChange={e => set("name", e.target.value)} placeholder="e.g. Phan Hospitality JSC" />
       </Field>
 
       <Field label="Owner Email *">
@@ -107,21 +114,18 @@ function CompanyForm({ initial, onSave, onClose }) {
       </Field>
 
       <div className="form-row">
-        <Field label="Điện thoại">
+        <Field label={en ? "Phone" : "Điện thoại"}>
           <input className="input" style={{ width: "100%" }} value={form.phone}
             onChange={e => set("phone", e.target.value)} placeholder="0909 xxx xxx" />
         </Field>
-        <Field label="Địa chỉ">
+        <Field label={en ? "Address" : "Địa chỉ"}>
           <input className="input" style={{ width: "100%" }} value={form.address}
-            onChange={e => set("address", e.target.value)} placeholder="TP.HCM" />
+            onChange={e => set("address", e.target.value)} placeholder="Ho Chi Minh City" />
         </Field>
       </div>
 
-      {/* Plan */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
-          Gói dịch vụ
-        </div>
+        {sec("Gói dịch vụ", "Subscription Plan")}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
           {Object.entries(PLANS).map(([key, p]) => {
             const PIcon = p.icon;
@@ -135,7 +139,7 @@ function CompanyForm({ initial, onSave, onClose }) {
                 <PIcon size={14} color={p.color} style={{ marginBottom: 4 }} />
                 <div style={{ fontSize: 12, fontWeight: 700, color: p.color, marginBottom: 3 }}>{p.label}</div>
                 <div style={{ fontSize: 10, color: "var(--text3)", lineHeight: 1.5 }}>
-                  {p.maxProp === 999 ? "∞" : p.maxProp} cơ sở · {p.maxAssets === 9999 ? "∞" : p.maxAssets} TS
+                  {p.maxProp === 999 ? "∞" : p.maxProp} {en ? "prop" : "cơ sở"} · {p.maxAssets === 9999 ? "∞" : p.maxAssets} {en ? "assets" : "TS"}
                 </div>
               </div>
             );
@@ -143,11 +147,8 @@ function CompanyForm({ initial, onSave, onClose }) {
         </div>
       </div>
 
-      {/* Status */}
       <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
-          Trạng thái
-        </div>
+        {sec("Trạng thái", "Status")}
         <div style={{ display: "flex", gap: 8 }}>
           {Object.entries(STATUS_CFG).map(([key, cfg]) => {
             const SIcon = cfg.icon;
@@ -160,43 +161,42 @@ function CompanyForm({ initial, onSave, onClose }) {
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
               }}>
                 <SIcon size={12} color={cfg.color} />
-                <span style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: cfg.color }}>{cfg.label}</span>
+                <span style={{ fontSize: 11, fontWeight: active ? 700 : 400, color: cfg.color }}>{sl(cfg, lang)}</span>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Admin account – create only */}
       {!initial && (
         <div style={{ borderTop: "1px solid var(--border)", paddingTop: 14, marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>
-            Tài khoản Admin tổng công ty
-          </div>
+          {sec("Tài khoản Admin tổng công ty", "Company Admin Account")}
           <div style={{ background: "#E6F1FB", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#185FA5" }}>
-            ℹ Tài khoản này được tạo trong Firebase Auth với quyền <strong>Company Admin</strong>
+            ℹ {en
+              ? <><strong>Company Admin</strong> account will be created in Firebase Auth</>
+              : <>Tài khoản <strong>Company Admin</strong> được tạo trong Firebase Auth</>}
           </div>
-          <Field label="Họ tên Admin *">
+          <Field label={en ? "Admin Full Name *" : "Họ tên Admin *"}>
             <input className="input" style={{ width: "100%" }} value={form.adminName}
-              onChange={e => set("adminName", e.target.value)} placeholder="Nguyễn Văn A" />
+              onChange={e => set("adminName", e.target.value)} placeholder="Nguyen Van A" />
           </Field>
           <div className="form-row">
-            <Field label="Email Admin *">
+            <Field label="Admin Email *">
               <input className="input" style={{ width: "100%" }} type="email" value={form.adminEmail}
                 onChange={e => set("adminEmail", e.target.value)} placeholder="admin@company.com" />
             </Field>
-            <Field label="Mật khẩu tạm *">
+            <Field label={en ? "Temp Password *" : "Mật khẩu tạm *"}>
               <input className="input" style={{ width: "100%" }} type="password" value={form.adminPassword}
-                onChange={e => set("adminPassword", e.target.value)} placeholder="≥ 6 ký tự" />
+                onChange={e => set("adminPassword", e.target.value)} placeholder="≥ 6 chars" />
             </Field>
           </div>
         </div>
       )}
 
-      <Field label="Ghi chú nội bộ">
+      <Field label={en ? "Internal Notes" : "Ghi chú nội bộ"}>
         <textarea className="input" style={{ width: "100%", minHeight: 56, resize: "vertical" }}
           value={form.notes} onChange={e => set("notes", e.target.value)}
-          placeholder="Thông tin thêm..." />
+          placeholder={en ? "Additional info..." : "Thông tin thêm..."} />
       </Field>
     </Modal>
   );
@@ -204,11 +204,17 @@ function CompanyForm({ initial, onSave, onClose }) {
 
 /* ── COMPANY CARD ────────────────────────────── */
 function CompanyCard({ company, stats, onEnter, onEdit, onDelete, onToggleStatus }) {
-  const plan   = PLANS[company.plan]         || PLANS.pro;
-  const status = STATUS_CFG[company.status]  || STATUS_CFG.active;
+  const { lang } = useTranslation();
+  const en = lang === "en";
+  const plan      = PLANS[company.plan]        || PLANS.pro;
+  const status    = STATUS_CFG[company.status] || STATUS_CFG.active;
   const PlanIcon   = plan.icon;
   const StatusIcon = status.icon;
   const isBlocked  = company.status === "blocked";
+
+  const createdDate = company.createdAt
+    ? new Date(company.createdAt).toLocaleDateString(en ? "en-US" : "vi-VN", { day: "numeric", month: "numeric", year: "numeric" })
+    : "—";
 
   return (
     <div style={{
@@ -219,231 +225,218 @@ function CompanyCard({ company, stats, onEnter, onEdit, onDelete, onToggleStatus
       onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.10)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
       onMouseLeave={e => { e.currentTarget.style.boxShadow = "none"; e.currentTarget.style.transform = "none"; }}
     >
-      {/* Card header */}
+      {/* Header */}
       <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 6 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text1)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {company.name}
             </div>
-            <code style={{ fontSize: 11, color: "var(--text3)", background: "var(--bg)", padding: "1px 6px", borderRadius: 4 }}>{company.id}</code>
+            <div style={{ fontSize: 11, color: "var(--text3)", fontFamily: "monospace" }}>{company.id}</div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: plan.bg, color: plan.color, display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
+          <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: plan.color, background: plan.bg, padding: "2px 8px", borderRadius: 20, display: "flex", alignItems: "center", gap: 3 }}>
               <PlanIcon size={9} /> {plan.label}
             </span>
-            <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 20, background: status.bg, color: status.color, display: "flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}>
-              <StatusIcon size={9} /> {status.label}
+            <span style={{ fontSize: 10, fontWeight: 700, color: status.color, background: status.bg, padding: "2px 8px", borderRadius: 20, display: "flex", alignItems: "center", gap: 3 }}>
+              <StatusIcon size={9} /> {sl(status, lang)}
             </span>
           </div>
         </div>
         {company.ownerEmail && (
-          <div style={{ fontSize: 11, color: "var(--text3)" }}>
-            👤 {company.ownerEmail}
-            {company.phone && ` · ${company.phone}`}
+          <div style={{ fontSize: 11, color: "var(--text3)", display: "flex", alignItems: "center", gap: 4 }}>
+            <Users size={10} /> {company.ownerEmail}
           </div>
         )}
       </div>
 
-      {/* Stats row */}
+      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", borderBottom: "1px solid var(--border)" }}>
         {[
-          { label: "Cơ sở",    val: stats.properties, color: "#185FA5", Icon: Building2 },
-          { label: "Tài sản",  val: stats.assets,     color: "#1D9E75", Icon: Package  },
-          { label: "Nhân viên",val: stats.staff,       color: "#534AB7", Icon: Users   },
+          { icon: Building2, val: stats.props,  label: en ? "Properties" : "Cơ sở"    },
+          { icon: Package,   val: stats.assets, label: en ? "Assets"     : "Tài sản"  },
+          { icon: Users,     val: stats.staff,  label: en ? "Staff"      : "Nhân viên" },
         ].map((s, i) => (
-          <div key={i} style={{
-            padding: "12px 8px", textAlign: "center",
-            borderRight: i < 2 ? "1px solid var(--border)" : "none",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-              <s.Icon size={11} color={s.color} />
-              <span style={{ fontSize: 20, fontWeight: 800, color: s.color }}>{s.val}</span>
+          <div key={i} style={{ padding: "10px 0", textAlign: "center", borderRight: i < 2 ? "1px solid var(--border)" : "none" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text1)" }}>{s.val}</div>
+            <div style={{ fontSize: 10, color: "var(--text3)", display: "flex", alignItems: "center", justifyContent: "center", gap: 3, marginTop: 2 }}>
+              <s.icon size={10} /> {s.label}
             </div>
-            <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 1 }}>{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Meta */}
-      <div style={{ padding: "8px 16px", fontSize: 11, color: "var(--text3)", flex: 1 }}>
-        {company.createdAt && `Tạo ${new Date(company.createdAt).toLocaleDateString("vi-VN")}`}
-        {company.address && ` · ${company.address}`}
-        {company.notes && <div style={{ marginTop: 3, color: "var(--text2)", fontStyle: "italic" }}>{company.notes}</div>}
+      {/* Footer */}
+      <div style={{ padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 10, color: "var(--text3)" }}>
+          {en ? "Created" : "Tạo"} {createdDate}
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button className="btn btn-sm btn-icon" onClick={onEdit}><Pencil size={12} /></button>
+          <button className="btn btn-sm btn-icon" onClick={onToggleStatus}
+            style={{ color: isBlocked ? "var(--green)" : "var(--amber)" }}>
+            {isBlocked ? <CheckCircle size={12} /> : <PauseCircle size={12} />}
+          </button>
+          <button className="btn btn-sm btn-icon btn-danger" onClick={onDelete}><Trash2 size={12} /></button>
+        </div>
       </div>
 
-      {/* Action bar */}
-      <div style={{ padding: "10px 14px", borderTop: "1px solid var(--border)", background: "var(--bg)", display: "flex", gap: 6 }}>
-        <button
-          className="btn btn-primary btn-sm"
-          onClick={onEnter}
-          disabled={isBlocked}
-          style={{ flex: 1, justifyContent: "center", gap: 5 }}
-        >
-          Vào xem <ArrowRight size={13} />
-        </button>
-        <button className="btn btn-sm btn-icon" onClick={onEdit} title="Sửa"><Pencil size={13} /></button>
-        <button
-          className="btn btn-sm btn-icon"
-          title={isBlocked ? "Kích hoạt lại" : "Tạm ngưng/Khoá"}
-          onClick={onToggleStatus}
-          style={{ color: isBlocked ? "#1D9E75" : "#854F0B", borderColor: isBlocked ? "#9FE1CB" : "#FAC775" }}
-        >
-          {isBlocked ? <CheckCircle size={13} /> : <PauseCircle size={13} />}
-        </button>
-        <button className="btn btn-sm btn-icon btn-danger" onClick={onDelete} title="Xoá"><Trash2 size={13} /></button>
-      </div>
+      <button onClick={onEnter} style={{
+        margin: "0 18px 14px", padding: "9px", borderRadius: 9,
+        background: "var(--green)", border: "none", color: "white",
+        fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "var(--font)",
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        transition: "background 0.15s",
+      }}
+        onMouseEnter={e => e.currentTarget.style.background = "#0F6E56"}
+        onMouseLeave={e => e.currentTarget.style.background = "var(--green)"}
+      >
+        {en ? "View Company" : "Vào xem"} <ArrowRight size={13} />
+      </button>
     </div>
   );
 }
 
-/* ── MAIN COMPONENT ──────────────────────────── */
-export default function Companies({ companies, setCompanies, allProperties = [], allAssets = [], allStaff = [], onEnterCompany }) {
-  const [showForm,    setShowForm]    = useState(false);
-  const [editing,     setEditing]     = useState(null);
-  const [searchQ,     setSearchQ]     = useState("");
-  const [filterPlan,  setFilterPlan]  = useState("all");
-  const [filterStatus,setFilterStatus]= useState("all");
-
+/* ── MAIN PAGE ───────────────────────────────── */
+export default function Companies({ companies, setCompanies, allProperties, allAssets, allStaff, onEnterCompany }) {
+  const { lang } = useTranslation();
+  const en = lang === "en";
   const toast   = useToast();
   const confirm = useConfirm();
 
-  const getStats = (cid) => ({
-    properties: allProperties.filter(p => String(p.companyId) === String(cid)).length,
-    assets:     allAssets.filter(a =>     String(a.companyId) === String(cid)).length,
-    staff:      allStaff.filter(s =>      String(s.companyId) === String(cid)).length,
-  });
+  const [search, setSearch]             = useState("");
+  const [filterPlan, setFilterPlan]     = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [showForm, setShowForm]         = useState(false);
+  const [editing, setEditing]           = useState(null);
 
   const filtered = companies.filter(c => {
-    const q = searchQ.toLowerCase();
-    if (q && !c.name.toLowerCase().includes(q) && !c.id.toLowerCase().includes(q)) return false;
-    if (filterPlan   !== "all" && c.plan   !== filterPlan)   return false;
-    if (filterStatus !== "all" && c.status !== filterStatus) return false;
+    if (search && !c.name.toLowerCase().includes(search.toLowerCase()) && !c.id.toLowerCase().includes(search.toLowerCase())) return false;
+    if (filterPlan   && c.plan   !== filterPlan)   return false;
+    if (filterStatus && c.status !== filterStatus) return false;
     return true;
   });
 
-  const handleSave = async (cleanCompany, adminInfo) => {
-    if (editing) {
-      await setCompanies(companies.map(c => c.id === editing.id ? cleanCompany : c));
-      toast.success(`Đã cập nhật ${cleanCompany.name}`);
-    } else {
-      if (companies.some(c => c.id === cleanCompany.id)) throw new Error("Company ID đã tồn tại");
-      await setCompanies([...companies, cleanCompany]);
-      await createCompanyAdmin(cleanCompany.id, adminInfo.email, adminInfo.password, adminInfo.name);
-      toast.success(`Đã tạo công ty và tài khoản Admin cho ${cleanCompany.name}`);
+  const getStats = (c) => ({
+    props:  allProperties.filter(p => String(p.companyId) === String(c.id)).length,
+    assets: allAssets.filter(a => String(a.companyId) === String(c.id)).length,
+    staff:  allStaff.filter(s => String(s.companyId) === String(c.id)).length,
+  });
+
+  const activeCount = companies.filter(c => c.status === "active").length;
+  const mrr = companies.reduce((s, c) => {
+    if (c.status === "blocked") return s;
+    if (c.plan === "pro")        return s + 299;
+    if (c.plan === "enterprise") return s + 999;
+    return s;
+  }, 0);
+  const proCount = companies.filter(c => c.plan === "pro").length;
+  const entCount = companies.filter(c => c.plan === "enterprise").length;
+
+  const handleSave = async (company, adminCreds) => {
+    if (adminCreds) {
+      try {
+        await createCompanyAdmin({
+          email: adminCreds.email, password: adminCreds.password,
+          name: adminCreds.name, companyId: company.id, permission: "company_admin",
+        });
+      } catch (e) {
+        if (!e.message.includes("already")) throw e;
+      }
     }
+    const exists = companies.find(c => c.id === company.id);
+    const updated = exists
+      ? companies.map(c => c.id === company.id ? company : c)
+      : [...companies, company];
+    await setCompanies(updated);
+    toast.success(en ? "Company saved!" : "Đã lưu công ty!");
     setShowForm(false);
     setEditing(null);
   };
 
   const handleDelete = async (company) => {
-    const stats = getStats(company.id);
-    const total = stats.properties + stats.assets + stats.staff;
-    const ok = await confirm({
-      title: `Xoá công ty: ${company.name}?`,
-      message: total > 0
-        ? `Công ty có ${stats.properties} cơ sở, ${stats.assets} tài sản, ${stats.staff} nhân viên. Xoá chỉ xoá hồ sơ công ty, không xoá dữ liệu. Tiếp tục?`
-        : "Hành động này không thể hoàn tác.",
-      danger: true,
-    });
+    const ok = await confirm(
+      en ? `Delete "${company.name}"? This cannot be undone.`
+         : `Xoá công ty "${company.name}"? Không thể hoàn tác.`
+    );
     if (!ok) return;
     await setCompanies(companies.filter(c => c.id !== company.id));
-    toast.warning(`Đã xoá ${company.name}`);
+    toast.success(en ? "Company deleted" : "Đã xoá công ty");
   };
 
-  const handleToggleStatus = async (company) => {
-    const next  = company.status === "blocked" ? "active" : "blocked";
-    const label = next === "blocked" ? "khoá" : "kích hoạt lại";
-    const ok = await confirm({
-      title: `${next === "blocked" ? "Khoá" : "Kích hoạt"} công ty?`,
-      message: `Bạn sắp ${label} "${company.name}".`,
-      danger: next === "blocked",
-    });
-    if (!ok) return;
+  const handleToggle = async (company) => {
+    const next = company.status === "blocked" ? "active" : "blocked";
     await setCompanies(companies.map(c => c.id === company.id ? { ...c, status: next } : c));
-    toast.success(`Đã ${label} ${company.name}`);
+    toast.info(en ? `Status changed to ${next}` : `Đã đổi trạng thái thành ${next}`);
   };
 
-  /* Platform summary */
-  const totalActive    = companies.filter(c => c.status === "active").length;
-  const proCount       = companies.filter(c => c.plan === "pro").length;
-  const enterpriseCount= companies.filter(c => c.plan === "enterprise").length;
-  const mrrUSD         = proCount * 299 + enterpriseCount * 999;
+  const kpis = [
+    { label: en ? "TOTAL COMPANIES" : "TỔNG CÔNG TY",  value: companies.length, sub: `${activeCount} ${en ? "active" : "đang hoạt động"}` },
+    { label: en ? "EST. MRR"        : "MRR ƯỚC TÍNH",  value: `$${mrr.toLocaleString()}`, sub: "Pro $299 · Enterprise $999" },
+    { label: en ? "PRO PLAN"        : "GÓI PRO",        value: proCount, sub: en ? "companies" : "công ty" },
+    { label: "ENTERPRISE",                               value: entCount, sub: en ? "companies" : "công ty" },
+  ];
 
   return (
     <div>
-      {/* Platform KPIs */}
+      {/* KPIs */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
-        <div className="stat-card">
-          <div className="stat-label">Tổng công ty</div>
-          <div className="stat-value">{companies.length}</div>
-          <div className="stat-sub">{totalActive} đang hoạt động</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">MRR ước tính</div>
-          <div className="stat-value" style={{ color: "var(--green)", fontSize: 22 }}>${mrrUSD.toLocaleString()}</div>
-          <div className="stat-sub">Pro $299 · Enterprise $999</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Gói Pro</div>
-          <div className="stat-value" style={{ color: "#185FA5" }}>{proCount}</div>
-          <div className="stat-sub">công ty</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Enterprise</div>
-          <div className="stat-value" style={{ color: "#534AB7" }}>{enterpriseCount}</div>
-          <div className="stat-sub">công ty</div>
-        </div>
+        {kpis.map((k, i) => (
+          <div key={i} className="stat-card">
+            <div className="stat-label">{k.label}</div>
+            <div className="stat-value">{k.value}</div>
+            <div className="stat-sub">{k.sub}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Filters + add button */}
-      <div style={{
-        background: "var(--white)", border: "1px solid var(--border)",
-        borderRadius: "12px 12px 0 0", padding: "14px 16px",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap",
-      }}>
-        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <input className="input" placeholder="Tìm tên hoặc Company ID..." value={searchQ}
-            onChange={e => setSearchQ(e.target.value)} style={{ width: 220 }} />
-          <select className="select" value={filterPlan} onChange={e => setFilterPlan(e.target.value)}>
-            <option value="all">Tất cả gói</option>
-            {Object.entries(PLANS).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
-          </select>
-          <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-            <option value="all">Tất cả trạng thái</option>
-            {Object.entries(STATUS_CFG).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
-          </select>
-          <span style={{ fontSize: 12, color: "var(--text3)" }}>{filtered.length} công ty</span>
-        </div>
+      {/* Toolbar */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+        <input className="input" style={{ flex: 1, minWidth: 180 }}
+          placeholder={en ? "Search name or Company ID..." : "Tìm tên hoặc Company ID..."}
+          value={search} onChange={e => setSearch(e.target.value)} />
+
+        <select className="select" value={filterPlan} onChange={e => setFilterPlan(e.target.value)}>
+          <option value="">{en ? "All plans" : "Tất cả gói"}</option>
+          {Object.entries(PLANS).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
+        </select>
+
+        <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+          <option value="">{en ? "All statuses" : "Tất cả trạng thái"}</option>
+          {Object.entries(STATUS_CFG).map(([k, s]) => (
+            <option key={k} value={k}>{sl(s, lang)}</option>
+          ))}
+        </select>
+
+        <span style={{ fontSize: 13, color: "var(--text3)", whiteSpace: "nowrap" }}>
+          {filtered.length} {en ? "companies" : "công ty"}
+        </span>
+
         <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-          <Plus size={14} /> Thêm công ty
+          <Plus size={14} /> {en ? "Add Company" : "Thêm công ty"}
         </button>
       </div>
 
-      {/* Company grid */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 14,
-        background: "var(--bg)", border: "1px solid var(--border)",
-        borderTop: "none", borderRadius: "0 0 12px 12px", padding: 16,
-      }}>
-        {filtered.length === 0 ? (
-          <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 48, color: "var(--text3)", fontSize: 14 }}>
-            {searchQ || filterPlan !== "all" || filterStatus !== "all"
-              ? "Không tìm thấy công ty phù hợp với bộ lọc"
-              : "Chưa có công ty nào — nhấn \"Thêm công ty\" để bắt đầu"}
-          </div>
-        ) : filtered.map(c => (
-          <CompanyCard
-            key={c.id}
-            company={c}
-            stats={getStats(c.id)}
-            onEnter={() => onEnterCompany?.(c)}
-            onEdit={() => { setEditing(c); setShowForm(true); }}
-            onDelete={() => handleDelete(c)}
-            onToggleStatus={() => handleToggleStatus(c)}
-          />
-        ))}
-      </div>
+      {/* Grid */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: 60, color: "var(--text3)" }}>
+          {en ? "No companies found." : "Không có công ty nào."}
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          {filtered.map(c => (
+            <CompanyCard
+              key={c.id}
+              company={c}
+              stats={getStats(c)}
+              onEnter={() => onEnterCompany(c)}
+              onEdit={() => { setEditing(c); setShowForm(true); }}
+              onDelete={() => handleDelete(c)}
+              onToggleStatus={() => handleToggle(c)}
+            />
+          ))}
+        </div>
+      )}
 
       {showForm && (
         <CompanyForm
