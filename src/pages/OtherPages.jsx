@@ -1,7 +1,7 @@
 // src/pages/OtherPages.jsx
 import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { Modal, Field, PropFilterBar, UrgencyChip, StatusChip } from '../components/UI.jsx';
+import { Modal, Field, PropFilterBar, UrgencyChip, StatusChip, formatVND } from '../components/UI.jsx';
 import { URGENCIES, MAINT_STATUSES, ROLES } from '../data/store.js';
 import { createStaffAccount } from '../data/firebase.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
