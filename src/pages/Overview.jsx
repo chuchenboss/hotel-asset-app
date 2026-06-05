@@ -30,22 +30,23 @@ function CustomTooltip({ active, payload, label }) {
 export default function Overview({ properties, assets, maintenance }) {
   const { t, lang } = useTranslation();
   const isEN = lang === 'en';
+  const currentYear = new Date().getFullYear();
   const ASSETS_LABEL = isEN ? 'Assets' : 'Tai san';
   const VALUE_LABEL  = isEN ? 'Value (M)' : 'Gia tri (tr)';
 
   const totalAssets   = assets.length;
   const totalValue    = assets.reduce((s, a) => s + (Number(a.value) || 0), 0);
-  const needAttention = assets.filter(a => a.status !== 'Dang dung' && a.status !== 'In Use').length;
+  const needAttention = assets.filter(a => a.status !== 'Đang dùng' && a.status !== 'In Use').length;
   const urgentMaint   = maintenance.filter(m =>
-    (m.urgency === 'Khan' || m.urgency === 'Urgent') &&
-    m.status !== 'Hoan thanh' && m.status !== 'Completed'
+    (m.urgency === 'Khẩn' || m.urgency === 'Urgent') &&
+    m.status !== 'Hoàn thành' && m.status !== 'Completed'
   ).length;
 
   const propStats = useMemo(() => properties.map(p => {
     const pa     = assets.filter(a => String(a.pid) === String(p.id));
     const val    = pa.reduce((s, a) => s + (Number(a.value) || 0), 0);
-    const issues = pa.filter(a => a.status !== 'Dang dung' && a.status !== 'In Use').length;
-    const dep    = pa.filter(a => (2026 - a.year) >= a.lifespan).length;
+    const issues = pa.filter(a => a.status !== 'Đang dùng' && a.status !== 'In Use').length;
+    const dep    = pa.filter(a => (currentYear - a.year) >= a.lifespan).length;
     return { ...p, count: pa.length, val, issues, dep };
   }), [properties, assets]);
 
@@ -63,12 +64,12 @@ export default function Overview({ properties, assets, maintenance }) {
   }, [assets]);
 
   const recentMaint = useMemo(() => [...maintenance]
-    .filter(m => m.status !== 'Hoan thanh' && m.status !== 'Completed')
+    .filter(m => m.status !== 'Hoàn thành' && m.status !== 'Completed')
     .sort((a, b) => new Date(a.date) - new Date(b.date))
     .slice(0, 6), [maintenance]);
 
   const expiredAssets = useMemo(() =>
-    assets.filter(a => (2026 - (a.year || 2026)) >= (a.lifespan || 99)),
+    assets.filter(a => (currentYear - (a.year || currentYear)) >= (a.lifespan || 99)),
     [assets]);
 
   return (
