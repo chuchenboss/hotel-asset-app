@@ -66,6 +66,17 @@ export default {
     website:     'Website',
     savedOk:     'Saved successfully!',
     deleteConfirm: 'Are you sure you want to delete this?',
+    logout:      'Sign Out',
+    loading:     'Loading...',
+    viewingCompany: 'Viewing company:',
+    exitPlatform:   'Back to Platform',
+    manageCompanies:'Manage Companies',
+    companies:      'Companies',
+    assetsByBranch: 'Assets by Branch',
+    assetsByCategory:'Assets by Category',
+    selectBranch:   'Select Branch',
+    expiredWarning: 'assets fully depreciated — consider disposal',
+    moreItems:      'more assets',
   },
 
   // ---- Overview ----

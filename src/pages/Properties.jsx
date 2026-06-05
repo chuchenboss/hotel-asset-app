@@ -3,14 +3,16 @@ import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Modal, Field, formatVND } from '../components/UI.jsx';
 import { HOTEL_TYPES, PROP_COLORS } from '../data/store.js';
+import { useTranslation } from '../i18n/useTranslation.jsx';
 
 function PropForm({ initial, onSave, onClose }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState(initial || { name: '', city: '', type: '5 sao', addr: '', manager: '', phone: '', color: PROP_COLORS[0] });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
-    <Modal title={initial?.id ? 'Chỉnh sửa cơ sở' : 'Thêm cơ sở mới'} onClose={onClose} footer={<>
-      <button className="btn" onClick={onClose}>Huỷ</button>
-      <button className="btn btn-primary" onClick={() => { if (!form.name || !form.city) return alert('Vui lòng điền tên và thành phố'); onSave(form); }}>Lưu cơ sở</button>
+    <Modal title={initial?.id ? t('properties.edit') : t('properties.add')} onClose={onClose} footer={<>
+      <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
+      <button className="btn btn-primary" onClick={() => { if (!form.name || !form.city) return alert(t('properties.namePlaceholder')); onSave(form); }}>{t('common.save')}</button>
     </>}>
       <Field label="Tên cơ sở *"><input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="VD: Grand Palace Đà Nẵng" /></Field>
       <div className="form-row">
@@ -38,6 +40,7 @@ function PropForm({ initial, onSave, onClose }) {
 }
 
 export default function Properties({ properties, setProperties, assets }) {
+  const { t } = useTranslation();
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
 
@@ -52,7 +55,7 @@ export default function Properties({ properties, setProperties, assets }) {
   };
 
   const handleDelete = (id) => {
-    if (confirm('Xoá cơ sở này? Tất cả tài sản liên quan cũng sẽ bị ảnh hưởng.')) {
+    if (confirm(t('properties.deleteConfirm'))) {
       setProperties(properties.filter(p => p.id !== id));
     }
   };
@@ -60,7 +63,7 @@ export default function Properties({ properties, setProperties, assets }) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 18 }}>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={14} /> Thêm cơ sở</button>
+        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}><Plus size={14} /> {t('properties.add')}</button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>

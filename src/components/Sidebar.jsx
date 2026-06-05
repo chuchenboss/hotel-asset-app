@@ -108,7 +108,7 @@ export default function Sidebar({
         {inCompanyView && (
           <div style={{ background: 'linear-gradient(135deg,#185FA5,#1e72c8)', padding: '8px 12px' }}>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.65)', marginBottom: 5 }}>
-              Đang xem công ty:
+              {t('common.viewingCompany')}
             </div>
             <button onClick={onExitCompany} style={{
               width: '100%', background: 'rgba(255,255,255,0.15)',
@@ -120,7 +120,7 @@ export default function Sidebar({
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.25)'}
               onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
             >
-              <ArrowLeft size={11} /> Thoát về Platform
+              <ArrowLeft size={11} /> {t('common.exitPlatform')}
             </button>
           </div>
         )}
@@ -172,7 +172,7 @@ export default function Sidebar({
           {isSuperAdmin && !inCompanyView && (
             <div className={`nav-item ${page === 'companies' ? 'active' : ''}`} onClick={() => handleNav('companies')}>
               <Building size={16} />
-              <span>Quản lý công ty</span>
+              <span>{t('common.manageCompanies')}</span>
             </div>
           )}
         </div>
@@ -202,7 +202,7 @@ export default function Sidebar({
         {/* Footer */}
         <div style={{ marginTop: 'auto', padding: '12px', borderTop: '1px solid var(--border)' }}>
           <div style={{ marginBottom: 8 }}><LanguageSwitcher /></div>
-          {(isSuperAdmin || isCompanyAdmin || canAccess('settings', currentUser)) && (
+          {canAccess('settings', currentUser) && (
             <div className={`nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => handleNav('settings')}>
               <Settings size={16} />
               <span>{t('nav.settings')}</span>
@@ -223,9 +223,90 @@ export default function Sidebar({
 
         {isSuperAdmin && !inCompanyView ? (
           <div className="bottom-nav-item" onClick={() => onNavigate('companies')}>
-            <Building /><span>Công ty</span>
+            <Building /><span>{t('common.companies')}</span>
           </div>
         ) : (
+          <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
+            <Settings /><span>{t('nav.settings')}</span>
+          </div>
+        )}
+      </nav>
+    </>
+  );
+}
+          <div className="sidebar-section-label">{t('nav.mainMenu')}</div>
+
+          {visibleNav.map(item => (
+            <div key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => handleNav(item.id)}>
+              <item.icon size={16} />
+              <span>{t(item.key)}</span>
+              {item.badge && alerts > 0 && <span className="badge">{alerts}</span>}
+            </div>
+          ))}
+
+          {isSuperAdmin && !inCompanyView && (
+            <div className={`nav-item ${page === 'companies' ? 'active' : ''}`} onClick={() => handleNav('companies')}>
+              <Building size={16} />
+              <span>{t('common.manageCompanies')}</span>
+            </div>
+          )}
+        </div>
+
+        {(inCompanyView || !isSuperAdmin) && properties.length > 0 && (
+          <div className="sidebar-props">
+            <div className="sidebar-props-label">{t('nav.branches')}</div>
+            {properties.map(p => (
+              <div key={p.id} className="prop-nav-item" onClick={() => handleNav('assets')}>
+                <div className="prop-dot" style={{ background: p.color }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                  {p.name || p.city}
+                </span>
+                <ChevronRight size={10} style={{ color: 'var(--text3)', flexShrink: 0 }} />
+              </div>
+            ))}
+            {(isSuperAdmin || isCompanyAdmin) && (
+              <div className="prop-nav-item" style={{ color: 'var(--text3)', marginTop: 4 }} onClick={() => handleNav('properties')}>
+                <PlusCircle size={13} />
+                <span>{t('nav.addProperty')}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ marginTop: 'auto', padding: '12px', borderTop: '1px solid var(--border)' }}>
+          <div style={{ marginBottom: 8 }}><LanguageSwitcher /></div>
+          {canAccess('settings', currentUser) && (
+            <div className={`nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => handleNav('settings')}>
+              <Settings size={16} />
+              <span>{t('nav.settings')}</span>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <nav className="bottom-nav">
+        {BOTTOM_NAV.filter(item => isSuperAdmin || canAccess(item.id, currentUser)).map(item => (
+          <div key={item.id} className={`bottom-nav-item ${page === item.id ? 'active' : ''}`} onClick={() => onNavigate(item.id)}>
+            {item.badge && alerts > 0 && <span className="nav-badge">{alerts}</span>}
+            <item.icon />
+            <span>{t(item.key)}</span>
+          </div>
+        ))}
+
+        {isSuperAdmin && !inCompanyView ? (
+          <div className="bottom-nav-item" onClick={() => onNavigate('companies')}>
+            <Building /><span>{t('common.companies')}</span>
+          </div>
+        ) : (
+          <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
+            <Settings /><span>{t('nav.settings')}</span>
+          </div>
+        )}
+      </nav>
+    </>
+  );
+}
+(
           <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
             <Settings /><span>{t('nav.settings')}</span>
           </div>

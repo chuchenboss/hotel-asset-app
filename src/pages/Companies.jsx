@@ -371,18 +371,18 @@ export default function Companies({ companies, setCompanies, allProperties, allA
   };
 
   const kpis = [
-    { label: en ? "TOTAL COMPANIES" : "TỔNG CÔNG TY",  value: companies.length, sub: `${activeCount} ${en ? "active" : "đang hoạt động"}` },
-    { label: en ? "EST. MRR"        : "MRR ƯỚC TÍNH",  value: `$${mrr.toLocaleString()}`, sub: "Pro $299 · Enterprise $999" },
-    { label: en ? "PRO PLAN"        : "GÓI PRO",        value: proCount, sub: en ? "companies" : "công ty" },
-    { label: "ENTERPRISE",                               value: entCount, sub: en ? "companies" : "công ty" },
+    { label: en ? "TOTAL COMPANIES" : "TONG CONG TY", value: companies.length, sub: activeCount + (en ? " active" : " hoat dong") },
+    { label: en ? "PRO PLAN"        : "GOI PRO",       value: proCount,         sub: en ? "companies" : "cong ty" },
+    { label: "ENTERPRISE",                              value: entCount,         sub: en ? "companies" : "cong ty" },
+    { label: en ? "EST. MRR"        : "DOANH THU/THANG", value: "$" + mrr.toLocaleString(), sub: "Pro $299 - Enterprise $999" },
   ];
 
   return (
     <div>
-      {/* KPIs */}
+      {/* KPI strip */}
       <div className="stats-grid" style={{ marginBottom: 20 }}>
-        {kpis.map((k, i) => (
-          <div key={i} className="stat-card">
+        {kpis.map(k => (
+          <div key={k.label} className="stat-card">
             <div className="stat-label">{k.label}</div>
             <div className="stat-value">{k.value}</div>
             <div className="stat-sub">{k.sub}</div>
@@ -391,40 +391,35 @@ export default function Companies({ companies, setCompanies, allProperties, allA
       </div>
 
       {/* Toolbar */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <input className="input" style={{ flex: 1, minWidth: 180 }}
-          placeholder={en ? "Search name or Company ID..." : "Tìm tên hoặc Company ID..."}
-          value={search} onChange={e => setSearch(e.target.value)} />
-
-        <select className="select" value={filterPlan} onChange={e => setFilterPlan(e.target.value)}>
-          <option value="">{en ? "All plans" : "Tất cả gói"}</option>
-          {Object.entries(PLANS).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
-        </select>
-
-        <select className="select" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="">{en ? "All statuses" : "Tất cả trạng thái"}</option>
-          {Object.entries(STATUS_CFG).map(([k, s]) => (
-            <option key={k} value={k}>{sl(s, lang)}</option>
-          ))}
-        </select>
-
-        <span style={{ fontSize: 13, color: "var(--text3)", whiteSpace: "nowrap" }}>
-          {filtered.length} {en ? "companies" : "công ty"}
-        </span>
-
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-          <Plus size={14} /> {en ? "Add Company" : "Thêm công ty"}
-        </button>
-      </div>
-
-      {/* Grid */}
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 60, color: "var(--text3)" }}>
-          {en ? "No companies found." : "Không có công ty nào."}
+      <div className="panel">
+        <div className="panel-header" style={{ flexWrap: "wrap", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flex: 1, flexWrap: "wrap" }}>
+            <input
+              className="input" style={{ maxWidth: 220 }}
+              placeholder={en ? "Search..." : "Tim kiem..."}
+              value={search} onChange={e => setSearch(e.target.value)}
+            />
+            <select className="select" style={{ maxWidth: 160 }} value={filterPlan} onChange={e => setFilterPlan(e.target.value)}>
+              <option value="">{en ? "All Plans" : "Tat ca goi"}</option>
+              {Object.entries(PLANS).map(([k, p]) => <option key={k} value={k}>{p.label}</option>)}
+            </select>
+            <select className="select" style={{ maxWidth: 160 }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+              <option value="">{en ? "All Statuses" : "Tat ca trang thai"}</option>
+              {Object.entries(STATUS_CFG).map(([k, cfg]) => <option key={k} value={k}>{sl(cfg, lang)}</option>)}
+            </select>
+          </div>
+          <button className="btn btn-primary btn-sm" onClick={() => { setEditing(null); setShowForm(true); }}>
+            + {en ? "Add Company" : "Them cong ty"}
+          </button>
         </div>
-      ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-          {filtered.map(c => (
+
+        {/* Company grid */}
+        <div style={{ padding: "16px", display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+          {filtered.length === 0 ? (
+            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 40, color: "var(--text3)" }}>
+              {en ? "No companies found." : "Khong co cong ty nao."}
+            </div>
+          ) : filtered.map(c => (
             <CompanyCard
               key={c.id}
               company={c}
@@ -436,7 +431,7 @@ export default function Companies({ companies, setCompanies, allProperties, allA
             />
           ))}
         </div>
-      )}
+      </div>
 
       {showForm && (
         <CompanyForm

@@ -382,7 +382,7 @@ export default function App() {
         justifyContent: 'center',
         fontSize: 18,
       }}>
-        Đang tải...
+        {t('common.loading')}
       </div>
     );
   }
@@ -471,5 +471,7 @@ export default function App() {
         </div>
       </div>
     </div>
+  );
+}
   );
 }

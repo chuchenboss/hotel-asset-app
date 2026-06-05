@@ -519,13 +519,54 @@ export default function AirCon({ properties, aircons: airconsProp, acHistory: ac
         )}
       </div>
 
-      {showForm && <AcForm initial={editing} properties={properties} onSave={handleSaveAc} onClose={() => { setShowForm(false); setEditing(null); }} />}
-      {detail && !logging && (
-        <AcDetail ac={detail} history={history} onClose={() => setDetail(null)}
-          onLog={() => setLogging(detail)}
-          onEdit={() => { setEditing(detail); setDetail(null); setShowForm(true); }} />
+
+      {/* Modals */}
+      {detail && (
+        <AcDetail
+          ac={detail}
+          history={history.filter(h => h.acId === detail.id)}
+          onClose={() => setDetail(null)}
+          onLog={() => { setLogging(detail); setDetail(null); }}
+          onEdit={() => { setEditing(detail); setShowForm(true); setDetail(null); }}
+        />
       )}
-      {logging && <MaintLogForm ac={logging} onSave={handleLog} onClose={() => setLogging(null)} />}
+
+      {showForm && (
+        <AcForm
+          initial={editing}
+          properties={properties}
+          onSave={(data) => {
+            const saved = editing
+              ? acs.map(a => a.id === data.id ? data : a)
+              : [...acs, { ...data, id: Date.now() }];
+            setAcs(saved);
+            onSaveAircons(saved);
+            setShowForm(false);
+            setEditing(null);
+          }}
+          onClose={() => { setShowForm(false); setEditing(null); }}
+        />
+      )}
+
+      {logging && (
+        <MaintLogForm
+          ac={logging}
+          onSave={(entry) => {
+            const nextDate = addMonths(entry.date, logging.cycle || 3);
+            const newHist = [...history, { ...entry, acId: logging.id, id: Date.now() }];
+            const updated = acs.map(a => a.id === logging.id
+              ? { ...a, lastMaint: entry.date, nextMaint: nextDate, status: 'Hoat dong' }
+              : a
+            );
+            setAcs(updated);
+            setHistory(newHist);
+            onSaveAircons(updated);
+            onSaveHistory(newHist);
+            setLogging(null);
+          }}
+          onClose={() => setLogging(null)}
+        />
+      )}
     </div>
   );
 }

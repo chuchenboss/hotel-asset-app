@@ -92,166 +92,111 @@ export default function Login() {
             fontSize: 24, fontWeight: 800, color: "#fff",
             backdropFilter: "blur(4px)",
           }}>A</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
-            AssetHub
-          </div>
-          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.75)" }}>
-            Hệ thống quản lý tài sản chuyên nghiệp
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4 }}>AssetHub</div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)" }}>
+            {isSuperAdmin ? "Super Admin Platform" : "Asset Management System"}
           </div>
         </div>
 
-        {/* Form */}
+        {/* Body */}
         <div style={{ padding: "28px 32px 32px" }}>
           {step === "email" ? (
             <>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1917", marginBottom: 6 }}>
-                Đăng nhập
-              </div>
-              <div style={{ fontSize: 13, color: "#9B9890", marginBottom: 20 }}>
-                Nhập email để xác định tài khoản
-              </div>
-
-              <div style={{ marginBottom: 14 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#5F5E5A", marginBottom: 6 }}>
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
                   Email
                 </label>
                 <input
-                  className="input"
                   type="email"
+                  className="input"
+                  style={{ width: "100%" }}
                   value={email}
                   onChange={e => { setEmail(e.target.value); setError(""); }}
                   onKeyDown={e => e.key === "Enter" && handleContinue()}
-                  placeholder="email@congty.com"
-                  style={{ width: "100%", fontSize: 14, padding: "10px 13px" }}
+                  placeholder="you@company.com"
                   autoFocus
                 />
               </div>
 
-              {/* Company ID – only shown for non-super-admin */}
-              {email && !isSuperAdmin && (
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#5F5E5A", marginBottom: 6 }}>
+              {!isSuperAdmin && (
+                <div style={{ marginBottom: 18 }}>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
                     Company ID
                   </label>
                   <input
                     className="input"
+                    style={{ width: "100%" }}
                     value={companyId}
-                    onChange={e => { setCompanyId(e.target.value); setError(""); }}
+                    onChange={e => { setCompanyId(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "")); setError(""); }}
                     onKeyDown={e => e.key === "Enter" && handleContinue()}
-                    placeholder="vd: phan-hospitality"
-                    style={{ width: "100%", fontSize: 14, padding: "10px 13px" }}
+                    placeholder="e.g. phan-hospitality"
                   />
-                  <div style={{ fontSize: 11, color: "#9B9890", marginTop: 5 }}>
-                    Company ID được cung cấp bởi quản trị viên của bạn
+                  <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>
+                    Provided by your company administrator
                   </div>
                 </div>
               )}
 
-              {isSuperAdmin && email && (
-                <div style={{
-                  background: "#E1F5EE", border: "1px solid #9FE1CB",
-                  borderRadius: 8, padding: "8px 12px", marginBottom: 14,
-                  fontSize: 12, color: "#0F6E56", display: "flex", alignItems: "center", gap: 6,
-                }}>
-                  <span style={{ fontSize: 14 }}>🔐</span>
-                  Tài khoản Super Admin — không cần Company ID
+              {isSuperAdmin && (
+                <div style={{ background: "#E6F1FB", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 12, color: "#185FA5" }}>
+                  Super Admin detected — full platform access
                 </div>
               )}
 
-              {error && (
-                <div style={{ background: "#FCEBEB", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: "#A32D2D" }}>
-                  {error}
-                </div>
-              )}
+              {error && <div style={{ color: "#DC2626", fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
               <button
+                className="btn btn-primary"
+                style={{ width: "100%", padding: "11px", fontSize: 14 }}
                 onClick={handleContinue}
-                style={{
-                  width: "100%", padding: "11px", borderRadius: 10, border: "none",
-                  background: "#1D9E75", color: "#fff", fontWeight: 600,
-                  fontSize: 14, cursor: "pointer", fontFamily: "inherit",
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={e => e.target.style.background = "#0F6E56"}
-                onMouseLeave={e => e.target.style.background = "#1D9E75"}
               >
-                Tiếp tục →
+                Continue
               </button>
             </>
           ) : (
             <>
-              {/* Back button + email summary */}
-              <button
-                onClick={() => { setStep("email"); setPassword(""); setError(""); }}
-                style={{
-                  background: "none", border: "none", cursor: "pointer",
-                  fontSize: 13, color: "#5F5E5A", padding: "0 0 16px", display: "flex",
-                  alignItems: "center", gap: 5, fontFamily: "inherit",
-                }}
-              >
-                ← Quay lại
-              </button>
-
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: "#1a1917", marginBottom: 4 }}>
-                  Nhập mật khẩu
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, padding: "8px 12px", background: "#F3F4F6", borderRadius: 8 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12, color: "#6B7280" }}>Signing in as</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{email}</div>
+                  {!isSuperAdmin && <div style={{ fontSize: 11, color: "#9CA3AF" }}>Company: {companyId}</div>}
                 </div>
-                <div style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  background: "#F7F6F2", borderRadius: 20, padding: "4px 12px",
-                }}>
-                  <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#1D9E75" }} />
-                  <span style={{ fontSize: 13, color: "#5F5E5A" }}>
-                    {email}{!isSuperAdmin && ` · ${companyId}`}
-                  </span>
-                </div>
+                <button
+                  style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#6B7280", padding: "4px 8px", borderRadius: 4 }}
+                  onClick={() => { setStep("email"); setPassword(""); setError(""); }}
+                >
+                  Change
+                </button>
               </div>
 
-              <div style={{ marginBottom: 20 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#5F5E5A", marginBottom: 6 }}>
-                  Mật khẩu
+              <div style={{ marginBottom: 18 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>
+                  Password
                 </label>
                 <input
-                  className="input"
                   type="password"
+                  className="input"
+                  style={{ width: "100%" }}
                   value={password}
                   onChange={e => { setPassword(e.target.value); setError(""); }}
-                  onKeyDown={e => e.key === "Enter" && !loading && handleLogin()}
-                  placeholder="••••••••"
-                  style={{ width: "100%", fontSize: 14, padding: "10px 13px" }}
+                  onKeyDown={e => e.key === "Enter" && handleLogin()}
+                  placeholder="Enter your password"
                   autoFocus
                 />
               </div>
 
-              {error && (
-                <div style={{ background: "#FCEBEB", borderRadius: 8, padding: "8px 12px", marginBottom: 14, fontSize: 13, color: "#A32D2D" }}>
-                  {error}
-                </div>
-              )}
+              {error && <div style={{ color: "#DC2626", fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
               <button
+                className="btn btn-primary"
+                style={{ width: "100%", padding: "11px", fontSize: 14 }}
                 onClick={handleLogin}
                 disabled={loading}
-                style={{
-                  width: "100%", padding: "11px", borderRadius: 10, border: "none",
-                  background: loading ? "#9FE1CB" : "#1D9E75",
-                  color: "#fff", fontWeight: 600, fontSize: 14,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontFamily: "inherit", transition: "background 0.15s",
-                }}
               >
-                {loading ? "Đang đăng nhập..." : "Đăng nhập"}
+                {loading ? "Signing in..." : "Sign In"}
               </button>
             </>
           )}
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          padding: "14px 32px", borderTop: "1px solid #e2e0d8",
-          textAlign: "center", fontSize: 11, color: "#9B9890",
-        }}>
-          AssetHub © 2026 — Phần mềm quản lý tài sản khách sạn
         </div>
       </div>
     </div>

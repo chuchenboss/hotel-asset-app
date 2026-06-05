@@ -81,7 +81,7 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
           value={form.pid || ''}
           onChange={e => set('pid', e.target.value)}
         >
-          <option value="">Chọn cơ sở</option>
+          <option value="">{t('common.selectBranch')}</option>
           {properties.map(p => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -812,7 +812,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                 setShowForm(true);
               }}
             >
-              <Plus size={14} /> Thêm nhân viên
+              <Plus size={14} /> {t('staff.add')}
             </button>
           )}
         </div>
@@ -844,7 +844,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                       color: 'var(--text3)',
                     }}
                   >
-                    Chưa có nhân viên
+                    {t('staff.noStaff')}
                   </td>
                 </tr>
               ) : (
@@ -895,7 +895,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                                   return alert('Không được xoá super admin');
                                 }
 
-                                if (confirm('Xoá nhân viên này?')) {
+                                if (window.confirm(s.name + ' - Xoá nhân viên này?')) {
                                   setStaff(staff.filter(x => x.id !== s.id));
                                 }
                               }}
@@ -916,7 +916,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
       {showForm && (
         <Modal
-          title={editing?.id ? 'Sửa nhân viên' : 'Thêm nhân viên mới'}
+          title={editing?.id ? t('staff.edit') : t('staff.addNew')}
           onClose={() => {
             setShowForm(false);
             setEditing(null);
@@ -1047,13 +1047,13 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
           </select>
         </Field>
         <Field label="Đơn giá (VNĐ)">
-          <input className="input" type="number" value={form.price || 0} onChange={e => set('price', parseInt(e.target.value) || 0)} />
+              <input className="input" type="number" value={form.price || 0} onChange={e => set('price', parseInt(e.target.value) || 0)} />
         </Field>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+        <button className="btn btn-primary" style={{ flex: 1 }} onClick={save}>{t('common.save')}</button>
         <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-        <button className="btn btn-primary" onClick={save}>{t('common.save')}</button>
       </div>
     </div>
   );
@@ -1061,130 +1061,117 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
 
 export function Inventory({ properties, inventory, setInventory }) {
   const { t } = useTranslation();
-  const [selProp, setSelProp] = useState('all');
-  const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [selCat, setSelCat] = useState('all');
+  const [modal, setModal] = useState(null);
+  const [filterPid, setFilterPid] = useState('');
+  const [search, setSearch] = useState('');
+  const [confirmId, setConfirmId] = useState(null);
 
-  const filtered = (selProp === 'all' ? inventory : inventory.filter(i => Number(i.pid) === Number(selProp)))
-    .filter(i => selCat === 'all' || i.category === selCat);
+  const filtered = inventory.filter(item => {
+    const matchProp = !filterPid || String(item.pid) === String(filterPid);
+    const q = search.toLowerCase();
+    const matchSearch = !q || (item.name || '').toLowerCase().includes(q) || (item.code || '').toLowerCase().includes(q);
+    return matchProp && matchSearch;
+  });
 
-  const lowStock  = inventory.filter(i => i.qty <= i.minQty && i.minQty > 0).length;
-  const totalVal  = filtered.reduce((s, i) => s + (i.qty || 0) * (i.price || 0), 0);
-  const cats = [...new Set(inventory.map(i => i.category).filter(Boolean))];
+  const totalItems = inventory.length;
+  const lowStock   = inventory.filter(i => i.qty <= i.minQty).length;
+  const inStock    = inventory.filter(i => i.qty > i.minQty).length;
+  const totalValue = inventory.reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.qty) || 0), 0);
 
-  function fmtVND(v) {
-    if (!v) return '—';
-    if (v >= 1_000_000_000) return (v / 1_000_000_000).toFixed(1) + ' tỷ';
-    if (v >= 1_000_000) return (v / 1_000_000).toFixed(0) + ' tr';
-    return v.toLocaleString('vi-VN') + 'đ';
-  }
-
-  const handleSave = (form) => {
-    if (editing) {
-      setInventory(inventory.map(i => i.id === editing.id ? { ...editing, ...form } : i));
+  const save = (item) => {
+    if (modal === 'add') {
+      setInventory([...inventory, { ...item, id: Date.now() }]);
     } else {
-      setInventory([...inventory, { ...form, id: String(Date.now()) }]);
+      setInventory(inventory.map(x => x.id === item.id ? item : x));
     }
-    setShowForm(false);
-    setEditing(null);
+    setModal(null);
   };
 
-  const handleDelete = async (item) => {
-    if (window.confirm(`Xoá "${item.name}"?`)) {
-      setInventory(inventory.filter(x => x.id !== item.id));
-    }
+  const remove = (id) => {
+    setInventory(inventory.filter(x => x.id !== id));
+    setConfirmId(null);
   };
 
   return (
     <div>
-      {/* Low stock alert */}
-      {lowStock > 0 && (
-        <div style={{
-          background: '#FAEEDA', border: '1px solid #FAC775', borderRadius: 10,
-          padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
-          fontSize: 13, color: '#854F0B',
-        }}>
-          ⚠ <strong>{lowStock} vật tư</strong> tồn kho dưới mức tối thiểu — cần đặt hàng bổ sung
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-label">{t('inventory.totalItems')}</div>
+          <div className="stat-value">{totalItems}</div>
         </div>
-      )}
-
-      <PropFilterBar props={properties} selected={selProp} onSelect={setSelProp} />
+        <div className="stat-card">
+          <div className="stat-label">{t('inventory.lowStock')}</div>
+          <div className="stat-value" style={{ color: lowStock > 0 ? 'var(--amber)' : 'inherit' }}>{lowStock}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">{t('inventory.inStock')}</div>
+          <div className="stat-value" style={{ color: 'var(--green)' }}>{inStock}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">{t('inventory.totalValue')}</div>
+          <div className="stat-value" style={{ fontSize: 18 }}>{formatVND(totalValue)}</div>
+        </div>
+      </div>
 
       <div className="panel">
         <div className="panel-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span className="panel-title">Kho vật tư</span>
-            <select className="select" value={selCat} onChange={e => setSelCat(e.target.value)} style={{ fontSize: 12 }}>
-              <option value="all">Tất cả danh mục</option>
-              {cats.map(c => <option key={c}>{c}</option>)}
+          <div style={{ display: 'flex', gap: 8, flex: 1, flexWrap: 'wrap' }}>
+            <input
+              className="input"
+              style={{ maxWidth: 220 }}
+              placeholder={t('common.search')}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+            <select className="select" style={{ maxWidth: 180 }} value={filterPid} onChange={e => setFilterPid(e.target.value)}>
+              <option value="">{t('common.all')}</option>
+              {properties.map(p => <option key={p.id} value={p.id}>{p.name || p.city}</option>)}
             </select>
-            {totalVal > 0 && (
-              <span style={{ fontSize: 12, color: 'var(--text3)', marginLeft: 4 }}>
-                Tổng giá trị: <strong style={{ color: 'var(--text)' }}>{fmtVND(totalVal)}</strong>
-              </span>
-            )}
           </div>
-
-          <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>
-            <Plus size={14} /> Thêm vật tư
-          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setModal('add')}>+ {t('inventory.add')}</button>
         </div>
 
-        <div className="table-wrap">
+        {filtered.length === 0 ? (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text3)' }}>{t('inventory.noItems')}</div>
+        ) : (
           <table>
             <thead>
               <tr>
-                <th>Cơ sở</th>
-                <th>Mã</th>
-                <th>Tên</th>
-                <th>Danh mục</th>
-                <th style={{ textAlign: 'right' }}>Tồn kho</th>
-                <th style={{ textAlign: 'right' }}>Tối thiểu</th>
-                <th>Đơn vị</th>
-                <th style={{ textAlign: 'right' }}>Đơn giá</th>
-                <th style={{ textAlign: 'right' }}>Tổng</th>
-                <th></th>
+                <th>{t('inventory.itemCode')}</th>
+                <th>{t('common.name')}</th>
+                <th>{t('common.branch')}</th>
+                <th>{t('inventory.category')}</th>
+                <th style={{ textAlign: 'right' }}>{t('inventory.stockQty')}</th>
+                <th style={{ textAlign: 'right' }}>{t('inventory.minQty')}</th>
+                <th>{t('inventory.stockLevel')}</th>
+                <th>{t('inventory.unit')}</th>
+                <th style={{ textAlign: 'right' }}>{t('inventory.unitPrice')}</th>
+                <th>{t('common.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(item => {
-                const p = properties.find(x => Number(x.id) === Number(item.pid));
-                const isLow = item.qty <= item.minQty && item.minQty > 0;
-                const rowVal = (item.qty || 0) * (item.price || 0);
-
+                const prop = properties.find(p => String(p.id) === String(item.pid));
+                const low = item.qty <= item.minQty;
                 return (
-                  <tr key={item.id} style={isLow ? { background: '#fffaf0' } : {}}>
-                    <td>
-                      {p ? (
-                        <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>
-                          {p.city}
-                        </span>
-                      ) : '—'}
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--text3)' }}>{item.code}</td>
+                  <tr key={item.id} style={{ background: low ? '#FFFBEB' : undefined }}>
+                    <td><code style={{ fontSize: 11 }}>{item.code || '—'}</code></td>
                     <td style={{ fontWeight: 500 }}>{item.name}</td>
-                    <td><span className="chip chip-blue" style={{ fontSize: 10 }}>{item.category}</span></td>
-                    <td style={{ textAlign: 'right' }}>
-                      <span style={{
-                        fontWeight: 600,
-                        color: isLow ? '#A32D2D' : 'var(--text)',
-                        background: isLow ? '#FCEBEB' : 'transparent',
-                        padding: isLow ? '2px 7px' : '0',
-                        borderRadius: isLow ? 20 : 0,
-                      }}>
-                        {item.qty}
-                        {isLow && ' ⚠'}
-                      </span>
+                    <td>{prop ? <span style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: (prop.color || '#ccc') + '22', color: prop.color || '#666' }}>{prop.name || prop.city}</span> : '—'}</td>
+                    <td><span className="chip">{item.category}</span></td>
+                    <td style={{ textAlign: 'right', fontWeight: 600, color: low ? 'var(--amber)' : undefined }}>{item.qty}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--text3)' }}>{item.minQty}</td>
+                    <td>
+                      {low
+                        ? <span className="chip chip-amber">⚠ {t('inventory.lowStock')}</span>
+                        : <span className="chip chip-green">{t('inventory.inStock')}</span>}
                     </td>
-                    <td style={{ textAlign: 'right', color: 'var(--text3)', fontSize: 12 }}>{item.minQty}</td>
-                    <td style={{ fontSize: 12 }}>{item.unit}</td>
-                    <td style={{ textAlign: 'right', fontSize: 12 }}>{item.price ? fmtVND(item.price) : '—'}</td>
-                    <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--text2)' }}>{rowVal > 0 ? fmtVND(rowVal) : '—'}</td>
+                    <td>{item.unit || '—'}</td>
+                    <td style={{ textAlign: 'right' }}>{item.price ? formatVND(Number(item.price)) : '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="btn btn-sm btn-icon" onClick={() => { setEditing(item); setShowForm(true); }}><Pencil size={12} /></button>
-                        <button className="btn btn-sm btn-icon btn-danger" onClick={() => handleDelete(item)}><Trash2 size={12} /></button>
+                        <button className="btn btn-sm" onClick={() => setModal(item)}>{t('common.edit')}</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => setConfirmId(item.id)}>{t('common.delete')}</button>
                       </div>
                     </td>
                   </tr>
@@ -1192,21 +1179,30 @@ export function Inventory({ properties, inventory, setInventory }) {
               })}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
 
-      {showForm && (
+      {(modal === 'add' || (modal && typeof modal === 'object')) && (
         <Modal
-          title={editing?.id ? 'Sửa vật tư' : 'Thêm vật tư'}
-          onClose={() => { setShowForm(false); setEditing(null); }}
-          footer={null}
+          title={modal === 'add' ? t('inventory.addNew') : t('inventory.edit')}
+          onClose={() => setModal(null)}
         >
           <InventoryForm
-            initial={editing}
+            initial={modal === 'add' ? null : modal}
             properties={properties}
-            onSave={handleSave}
-            onClose={() => { setShowForm(false); setEditing(null); }}
+            onSave={save}
+            onClose={() => setModal(null)}
           />
+        </Modal>
+      )}
+
+      {confirmId && (
+        <Modal title={t('common.confirm')} onClose={() => setConfirmId(null)}>
+          <p style={{ marginBottom: 16 }}>{t('inventory.delete')}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => remove(confirmId)}>{t('common.delete')}</button>
+            <button className="btn" onClick={() => setConfirmId(null)}>{t('common.cancel')}</button>
+          </div>
         </Modal>
       )}
     </div>
