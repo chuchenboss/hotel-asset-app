@@ -67,7 +67,6 @@ export default {
     savedOk:     'Đã lưu thành công!',
     deleteConfirm: 'Bạn có chắc muốn xoá?',
     logout:      'Đăng xuất',
-    loading:     'Đang tải...',
     viewingCompany: 'Đang xem công ty:',
     exitPlatform:   'Thoát về Platform',
     manageCompanies:'Quản lý công ty',
@@ -77,6 +76,10 @@ export default {
     selectBranch:   'Chọn cơ sở',
     expiredWarning: 'tài sản đã hết khấu hao — cần xem xét thanh lý',
     moreItems:      'tài sản khác',
+    exportExcel:    'Xuất Excel (.xlsx)',
+    exportExcelDesc:'6 sheet: Tài sản, Bảo trì, Kho, Nhân viên...',
+    exportSheets:   'Xuất Google Sheets',
+    exportSheetsDesc:'Tải CSV rồi import vào Google Drive',
   },
 
   // ---- Overview ----
@@ -367,11 +370,14 @@ export default {
       settings_mod: 'Cài đặt hệ thống',
     },
     roles: {
-      admin:      'Quản trị viên',
-      manager:    'Quản lý',
-      technician: 'Kỹ thuật viên',
-      staff:      'Nhân viên',
-      viewer:     'Chỉ xem',
+      superAdmin:  'Super Admin',
+      companyAdmin:'Quản trị công ty',
+      manager:     'Quản lý',
+      staff:       'Nhân viên',
+      viewer:      'Xem',
+      hotelMgr:    'Quản lý khách sạn',
+      resortMgr:   'Quản lý resort',
+      restaurantMgr:'Quản lý nhà hàng',
     },
   },
 };

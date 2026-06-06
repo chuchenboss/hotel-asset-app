@@ -4,6 +4,7 @@
 
 import { useState } from 'react';
 import { Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { useTranslation } from '../i18n/useTranslation.jsx';
 
 // ---- HELPER: tạo workbook từ dữ liệu ----
 function buildWorkbook(properties, assets, maintenance, inventory, staff) {
@@ -145,6 +146,7 @@ function exportGoogleSheets(properties, assets) {
 export default function ExportButton({ properties, assets, maintenance, inventory, staff }) {
   const [open, setOpen]   = useState(false);
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
   const settings    = (() => { try { return JSON.parse(localStorage.getItem('app_settings')||'{}'); } catch { return {}; } })();
   const companyName = settings.companyName || 'PalaceGroup';
 
@@ -166,7 +168,7 @@ export default function ExportButton({ properties, assets, maintenance, inventor
         style={{ display:'flex', alignItems:'center', gap:6 }}
       >
         {loading ? '⏳' : <Download size={14}/>}
-        Xuất báo cáo
+        {t('common.export')}
         <ChevronDown size={12}/>
       </button>
 
@@ -180,8 +182,8 @@ export default function ExportButton({ properties, assets, maintenance, inventor
                 onMouseLeave={e=>e.currentTarget.style.background='none'}>
                 <FileSpreadsheet size={15} color="#1D9E75"/> 
                 <div>
-                  <div style={{ fontWeight:500 }}>Xuất Excel (.xlsx)</div>
-                  <div style={{ fontSize:11, color:'var(--text3)' }}>6 sheet: Tài sản, Bảo trì, Kho, Nhân viên...</div>
+                  <div style={{ fontWeight:500 }}>{t('common.exportExcel')}</div>
+                  <div style={{ fontSize:11, color:'var(--text3)' }}>{t('common.exportExcelDesc')}</div>
                 </div>
               </button>
               <div style={{ height:1, background:'var(--border)', margin:'4px 0' }}/>
@@ -190,8 +192,8 @@ export default function ExportButton({ properties, assets, maintenance, inventor
                 onMouseLeave={e=>e.currentTarget.style.background='none'}>
                 <span style={{ fontSize:15 }}>📊</span>
                 <div>
-                  <div style={{ fontWeight:500 }}>Xuất Google Sheets</div>
-                  <div style={{ fontSize:11, color:'var(--text3)' }}>Tải CSV rồi import vào Google Drive</div>
+                  <div style={{ fontWeight:500 }}>{t('common.exportSheets')}</div>
+                  <div style={{ fontSize:11, color:'var(--text3)' }}>{t('common.exportSheetsDesc')}</div>
                 </div>
               </button>
             </div>

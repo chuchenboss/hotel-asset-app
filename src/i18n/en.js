@@ -67,7 +67,6 @@ export default {
     savedOk:     'Saved successfully!',
     deleteConfirm: 'Are you sure you want to delete this?',
     logout:      'Sign Out',
-    loading:     'Loading...',
     viewingCompany: 'Viewing company:',
     exitPlatform:   'Back to Platform',
     manageCompanies:'Manage Companies',
@@ -77,6 +76,10 @@ export default {
     selectBranch:   'Select Branch',
     expiredWarning: 'assets fully depreciated — consider disposal',
     moreItems:      'more assets',
+    exportExcel:    'Export Excel (.xlsx)',
+    exportExcelDesc:'6 sheets: Assets, Maintenance, Inventory, Staff...',
+    exportSheets:   'Export Google Sheets',
+    exportSheetsDesc:'Download CSV then import to Google Drive',
   },
 
   // ---- Overview ----
@@ -367,11 +370,14 @@ export default {
       settings_mod: 'System Settings',
     },
     roles: {
-      admin:      'Administrator',
-      manager:    'Manager',
-      technician: 'Technician',
-      staff:      'Staff',
-      viewer:     'View Only',
+      superAdmin:  'Super Admin',
+      companyAdmin:'Company Admin',
+      manager:     'Manager',
+      staff:       'Staff',
+      viewer:      'Viewer',
+      hotelMgr:    'Hotel Manager',
+      resortMgr:   'Resort Manager',
+      restaurantMgr:'Restaurant Manager',
     },
   },
 };
