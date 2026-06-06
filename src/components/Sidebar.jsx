@@ -82,9 +82,12 @@ export default function Sidebar({
 
   const handleNav = id => { onNavigate(id); onCloseMobile?.(); };
 
-  const visibleNav = NAV_ITEMS.filter(item =>
-    isSuperAdmin ? true : canAccess(item.id, currentUser)
-  );
+  // Platform view: Super Admin not yet entered a company → CMS only
+  const isPlatformView = isSuperAdmin && !inCompanyView;
+
+  const visibleNav = isPlatformView
+    ? [] // No asset management nav in platform view
+    : NAV_ITEMS.filter(item => isSuperAdmin ? true : canAccess(item.id, currentUser));
 
   return (
     <>
@@ -158,23 +161,32 @@ export default function Sidebar({
 
         {/* Main nav */}
         <div className="sidebar-section">
-          <div className="sidebar-section-label">{t('nav.mainMenu')}</div>
+          <div className="sidebar-section-label">
+            {isPlatformView ? 'PLATFORM' : t('nav.mainMenu')}
+          </div>
 
-          {visibleNav.map(item => (
+          {/* Platform CMS nav: Dashboard + Companies only */}
+          {isPlatformView && (
+            <>
+              <div className={`nav-item ${page === 'overview' ? 'active' : ''}`} onClick={() => handleNav('overview')}>
+                <LayoutDashboard size={16} />
+                <span>Dashboard</span>
+              </div>
+              <div className={`nav-item ${page === 'companies' ? 'active' : ''}`} onClick={() => handleNav('companies')}>
+                <Building size={16} />
+                <span>{t('common.manageCompanies')}</span>
+              </div>
+            </>
+          )}
+
+          {/* Regular asset management nav */}
+          {!isPlatformView && visibleNav.map(item => (
             <div key={item.id} className={`nav-item ${page === item.id ? 'active' : ''}`} onClick={() => handleNav(item.id)}>
               <item.icon size={16} />
               <span>{t(item.key)}</span>
               {item.badge && alerts > 0 && <span className="badge">{alerts}</span>}
             </div>
           ))}
-
-          {/* Companies — super admin, platform view only */}
-          {isSuperAdmin && !inCompanyView && (
-            <div className={`nav-item ${page === 'companies' ? 'active' : ''}`} onClick={() => handleNav('companies')}>
-              <Building size={16} />
-              <span>{t('common.manageCompanies')}</span>
-            </div>
-          )}
         </div>
 
         {/* Branches — show inside company context */}
@@ -213,22 +225,28 @@ export default function Sidebar({
 
       {/* ════ MOBILE BOTTOM NAV ════ */}
       <nav className="bottom-nav">
-        {BOTTOM_NAV.filter(item => isSuperAdmin || canAccess(item.id, currentUser)).map(item => (
-          <div key={item.id} className={`bottom-nav-item ${page === item.id ? 'active' : ''}`} onClick={() => onNavigate(item.id)}>
-            {item.badge && alerts > 0 && <span className="nav-badge">{alerts}</span>}
-            <item.icon />
-            <span>{t(item.key)}</span>
-          </div>
-        ))}
-
-        {isSuperAdmin && !inCompanyView ? (
-          <div className="bottom-nav-item" onClick={() => onNavigate('companies')}>
-            <Building /><span>{t('common.companies')}</span>
-          </div>
+        {isPlatformView ? (
+          <>
+            <div className={`bottom-nav-item ${page === 'overview' ? 'active' : ''}`} onClick={() => onNavigate('overview')}>
+              <LayoutDashboard /><span>Dashboard</span>
+            </div>
+            <div className={`bottom-nav-item ${page === 'companies' ? 'active' : ''}`} onClick={() => onNavigate('companies')}>
+              <Building /><span>Companies</span>
+            </div>
+          </>
         ) : (
-          <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
-            <Settings /><span>{t('nav.settings')}</span>
-          </div>
+          <>
+            {BOTTOM_NAV.filter(item => isSuperAdmin || canAccess(item.id, currentUser)).map(item => (
+              <div key={item.id} className={`bottom-nav-item ${page === item.id ? 'active' : ''}`} onClick={() => onNavigate(item.id)}>
+                {item.badge && alerts > 0 && <span className="nav-badge">{alerts}</span>}
+                <item.icon />
+                <span>{t(item.key)}</span>
+              </div>
+            ))}
+            <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
+              <Settings /><span>{t('nav.settings')}</span>
+            </div>
+          </>
         )}
       </nav>
     </>

@@ -12,6 +12,7 @@ import Assets from './pages/Assets.jsx';
 import AirCon from './pages/AirCon.jsx';
 import Settings from './pages/Settings.jsx';
 import Companies from './pages/Companies.jsx';
+import PlatformDashboard from './pages/PlatformDashboard.jsx';
 import { Maintenance, Depreciation, Staff, Inventory } from './pages/OtherPages.jsx';
 import Login from './Login.jsx';
 
@@ -289,16 +290,46 @@ export default function App() {
     m.status !== 'Completed'
   ).length;
 
+  const isPlatformView = superAdmin && !viewingCompany;
+
+  const PLATFORM_PAGES = ['overview', 'companies'];
+  const ASSET_PAGES = ['properties', 'assets', 'aircon', 'maintenance', 'depreciation', 'inventory', 'staff'];
+
   const navigate = (p, propId = null) => {
+    // Platform view: block asset management pages
+    if (isPlatformView && ASSET_PAGES.includes(p)) return;
     setPage(p);
     setInitPropId(propId);
     setSidebarOpen(false);
   };
 
-  const pageInfo = t(`pages.${page}`) || { title: page, sub: '' };
+  // Auto-redirect if somehow on an asset page while in platform view
+  const effectivePage = isPlatformView && ASSET_PAGES.includes(page) ? 'companies' : page;
+
+  const pageInfo = isPlatformView
+    ? (effectivePage === 'overview'
+        ? { title: 'Platform Dashboard', sub: 'Account & company management' }
+        : { title: 'Manage Companies', sub: 'All registered companies' })
+    : (t(`pages.${effectivePage}`) || { title: effectivePage, sub: '' });
 
   const renderPage = () => {
-    switch (page) {
+    // Platform view — CMS only
+    if (isPlatformView) {
+      if (effectivePage === 'overview') {
+        return (
+          <PlatformDashboard
+            companies={companies}
+            allProperties={allProperties}
+            allAssets={allAssets}
+            allStaff={allStaff}
+            onEnterCompany={handleEnterCompany}
+          />
+        );
+      }
+      // Fall through to companies case
+    }
+
+    switch (effectivePage) {
       case 'overview':
         return <Overview properties={properties} assets={assets} maintenance={maintenance} />;
 
@@ -438,7 +469,7 @@ export default function App() {
 
           <div style={{ flex: 1 }}>
             <div className="topbar-title">
-              {typeof pageInfo === 'object' ? pageInfo.title : page}
+              {typeof pageInfo === 'object' ? pageInfo.title : effectivePage}
             </div>
             {typeof pageInfo === 'object' && pageInfo.sub && (
               <div className="topbar-sub">{pageInfo.sub}</div>
@@ -446,13 +477,15 @@ export default function App() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ExportButton
-              properties={properties}
-              assets={assets}
-              maintenance={maintenance}
-              staff={staff}
-              inventory={inventory}
-            />
+            {!isPlatformView && (
+              <ExportButton
+                properties={properties}
+                assets={assets}
+                maintenance={maintenance}
+                staff={staff}
+                inventory={inventory}
+              />
+            )}
 
             <button
               className="btn btn-sm"
