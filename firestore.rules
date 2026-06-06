@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper functions ──────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        request.auth.token.email == "chuchen.boss@gmail.com";
+    }
+
+    // Check if the requesting user belongs to the company they're accessing
+    function belongsToCompany(companyId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.companyId == companyId;
+    }
+
+    function isCompanyAdmin(companyId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/staff/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.companyId == companyId &&
+        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.permission in ['company_admin', 'admin'];
+    }
+
+    function isNotDisabled(companyId) {
+      return !exists(/databases/$(database)/documents/staff/$(request.auth.uid)) ||
+        get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.status != 'Vô hiệu hóa';
+    }
+
+
+    // ── companies ─────────────────────────────────────────────
+    // Only super admin can read/write companies
+    match /companies/{companyId} {
+      allow read:  if isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // ── staff ─────────────────────────────────────────────────
+    // Super admin: full access
+    // Company admin: read/write their own company's staff
+    // Regular staff: read only their own company's staff
+    match /staff/{staffId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      isCompanyAdmin(resource.data.companyId) ||
+                      // Allow creating own profile (initial registration via secondaryAuth)
+                      (isAuthenticated() && request.auth.uid == staffId);
+      allow create: if isSuperAdmin() ||
+                       (isAuthenticated() && request.auth.uid == staffId);
+    }
+
+    // ── properties ────────────────────────────────────────────
+    match /properties/{docId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      isCompanyAdmin(resource.data.companyId);
+    }
+
+    // ── assets ────────────────────────────────────────────────
+    match /assets/{docId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      isCompanyAdmin(resource.data.companyId) ||
+                      // managers and above can edit assets
+                      (isAuthenticated() &&
+                       belongsToCompany(resource.data.companyId) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.permission in ['manager', 'admin', 'company_admin']);
+    }
+
+    // ── maintenance ───────────────────────────────────────────
+    match /maintenance/{docId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      (isAuthenticated() &&
+                       belongsToCompany(resource.data.companyId) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.permission in ['staff', 'manager', 'admin', 'company_admin']);
+    }
+
+    // ── inventory ─────────────────────────────────────────────
+    match /inventory/{docId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      (isAuthenticated() &&
+                       belongsToCompany(resource.data.companyId) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.permission in ['staff', 'manager', 'admin', 'company_admin']);
+    }
+
+    // ── aircons ───────────────────────────────────────────────
+    match /aircons/{docId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      (isAuthenticated() &&
+                       belongsToCompany(resource.data.companyId) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.permission in ['staff', 'manager', 'admin', 'company_admin']);
+    }
+
+    // ── ac_history ────────────────────────────────────────────
+    match /ac_history/{docId} {
+      allow read:  if isSuperAdmin() ||
+                      belongsToCompany(resource.data.companyId);
+      allow write: if isSuperAdmin() ||
+                      (isAuthenticated() &&
+                       belongsToCompany(resource.data.companyId) &&
+                       get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.permission in ['staff', 'manager', 'admin', 'company_admin']);
+    }
+
+    // ── Deny everything else ──────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

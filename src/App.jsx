@@ -79,196 +79,152 @@ export default function App() {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+  // Super admin: which company are we currently viewing (null = platform view)
+  const [viewingCompany, setViewingCompany] = useState(null);
 
-    async function loadAll() {
-      setLoading(true);
+  // loadData — scoped by companyId (null = load all, for super admin)
+  const loadData = async (scopedCompanyId) => {
+    setLoading(true);
+    try {
+      const isScoped = !!scopedCompanyId;
 
-      try {
-        const [p, a, m, s, i, c, ac, ach] = await Promise.all([
-          getProperties(),
-          getAssets(),
-          getMaintenance(),
-          getStaff(),
-          getInventory(),
-          getCompanies(),
-          getAircons(),
-          getAcHistory(),
+      if (isScoped) {
+        // Regular user or super admin in company view — only load that company's data
+        const [p, a, m, s, i, ac, ach] = await Promise.all([
+          getProperties(scopedCompanyId),
+          getAssets(scopedCompanyId),
+          getMaintenance(scopedCompanyId),
+          getStaff(scopedCompanyId),
+          getInventory(scopedCompanyId),
+          getAircons(scopedCompanyId),
+          getAcHistory(scopedCompanyId),
         ]);
-
         setAllProperties(p || []);
         setAllAssets((a || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
         setAllMaintenance(m || []);
         setAllStaff((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
         setAllInventory((i || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
-        setCompaniesState(c || []);
         setAllAircons(ac || []);
         setAllAcHistory(ach || []);
-      } catch (err) {
-        console.error('Load Firebase lỗi:', err);
-        toast.error('Không tải được dữ liệu Firebase: ' + err.message);
+      } else {
+        // Super admin platform view — load companies + all staff for platform stats
+        const [c, s] = await Promise.all([
+          getCompanies(),
+          getStaff(null), // all staff for platform-level stats
+        ]);
+        setCompaniesState(c || []);
+        setAllStaff((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        // Clear asset data — not needed in platform view
+        setAllProperties([]);
+        setAllAssets([]);
+        setAllMaintenance([]);
+        setAllInventory([]);
+        setAllAircons([]);
+        setAllAcHistory([]);
       }
+    } catch (err) {
+      console.error('Load Firebase lỗi:', err);
+      toast.error('Không tải được dữ liệu Firebase: ' + err.message);
+    }
+    setLoading(false);
+  };
 
+  useEffect(() => {
+    if (!user) { setLoading(false); return; }
+
+    // Determine scope from localStorage (set at login for non-super-admin)
+    const storedCompanyId = localStorage.getItem('companyId');
+    const isSA = String(user.email || '').toLowerCase() === SUPER_ADMIN_EMAIL;
+
+    if (isSA) {
+      // Super admin starts in platform view — load companies only
+      loadData(null);
+    } else if (storedCompanyId) {
+      // Regular user — load only their company's data
+      loadData(storedCompanyId);
+    } else {
       setLoading(false);
     }
-
-    loadAll();
   }, [user]);
 
-  // Super admin: which company are we currently viewing (null = platform view)
-  const [viewingCompany, setViewingCompany] = useState(null);
+  const superAdmin = isSuperAdminUser(user, null);
 
+  const currentCompanyId = superAdmin
+    ? (viewingCompany ? viewingCompany.id : null)
+    : (localStorage.getItem('companyId'));
+
+  // currentUser — from loaded staff
   const currentUser = allStaff.find(s =>
     String(s.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
   );
 
-  const superAdmin = isSuperAdminUser(user, currentUser);
+  // Data is already scoped by Firestore query — no client-side filter needed
+  // For super admin in company view, data was loaded for that company
+  const properties = allProperties;
+  const assets     = allAssets;
+  const maintenance= allMaintenance;
+  const staff      = allStaff;
+  const inventory  = allInventory;
 
-  // The "active" companyId for data filtering:
-  // - Regular user: their own companyId
-  // - Super Admin in platform view: null (no filter yet → companies page)
-  // - Super Admin viewing a company: viewingCompany.id
-  const currentCompanyId = superAdmin
-    ? (viewingCompany ? viewingCompany.id : null)
-    : (currentUser?.companyId || localStorage.getItem('companyId'));
-
-  const filterByCompany = (items) => {
-    if (superAdmin && !viewingCompany) return items; // platform view – show all for stats
-    if (superAdmin && viewingCompany) {
-      return items.filter(x => String(x.companyId || '') === String(viewingCompany.id));
-    }
-    return items.filter(x => String(x.companyId || '') === String(currentCompanyId || ''));
-  };
-
-  const properties = filterByCompany(allProperties);
-  const assets     = filterByCompany(allAssets);
-  const maintenance= filterByCompany(allMaintenance);
-  const staff      = filterByCompany(allStaff);
-  const inventory  = filterByCompany(allInventory);
-
-  // When super admin enters a company, auto-navigate to overview
-  const handleEnterCompany = (company) => {
+  // When super admin enters a company: load that company's data
+  const handleEnterCompany = async (company) => {
     setViewingCompany(company);
     setPage('overview');
     setSidebarOpen(false);
+    await loadData(company.id);
   };
 
-  const handleExitCompany = () => {
+  // When super admin exits back to platform: reload companies + all staff
+  const handleExitCompany = async () => {
     setViewingCompany(null);
     setPage('companies');
     setSidebarOpen(false);
+    await loadData(null);
   };
 
   const addCompanyId = (item) => {
-    if (superAdmin && viewingCompany) {
-      return { ...item, companyId: item.companyId || viewingCompany.id };
+    if (!item.companyId) {
+      return { ...item, companyId: currentCompanyId || '' };
     }
-    if (superAdmin) return item;
-    return { ...item, companyId: item.companyId || currentCompanyId };
+    return item;
   };
 
+  // Generic scoped save: tags each item with companyId, saves only this company's data
+  const scopeSave = (items, numericPid = false) =>
+    items.map(x => addCompanyId(numericPid ? { ...x, pid: x.pid ? Number(x.pid) : x.pid } : x));
+
   const setProperties = async (d) => {
-    const scopedData = d.map(addCompanyId);
-    const merged = (superAdmin && !viewingCompany)
-      ? scopedData
-      : [
-          ...allProperties.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
-          ...scopedData,
-        ];
-
-    setAllProperties(merged);
-
-    try {
-      await saveProperties(merged);
-    } catch (err) {
-      toast.error('Lỗi lưu cơ sở: ' + err.message);
-    }
+    const scoped = scopeSave(d);
+    setAllProperties(scoped);
+    try { await saveProperties(scoped, currentCompanyId); }
+    catch (err) { toast.error('Lỗi lưu cơ sở: ' + err.message); }
   };
 
   const setAssets = async (d) => {
-    const scopedData = d.map(x => addCompanyId({
-      ...x,
-      pid: x.pid ? Number(x.pid) : x.pid,
-    }));
-
-    const merged = (superAdmin && !viewingCompany)
-      ? scopedData
-      : [
-          ...allAssets.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
-          ...scopedData,
-        ];
-
-    setAllAssets(merged);
-
-    try {
-      await saveAssets(merged);
-    } catch (err) {
-      toast.error('Lỗi lưu tài sản: ' + err.message);
-    }
+    const scoped = scopeSave(d, true);
+    setAllAssets(scoped);
+    try { await saveAssets(scoped, currentCompanyId); }
+    catch (err) { toast.error('Lỗi lưu tài sản: ' + err.message); }
   };
 
   const setMaintenance = async (d) => {
-    const scopedData = d.map(addCompanyId);
-    const merged = (superAdmin && !viewingCompany)
-      ? scopedData
-      : [
-          ...allMaintenance.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
-          ...scopedData,
-        ];
-
-    setAllMaintenance(merged);
-
-    try {
-      await saveMaintenance(merged);
-    } catch (err) {
-      toast.error('Lỗi lưu bảo trì: ' + err.message);
-    }
+    const scoped = scopeSave(d);
+    setAllMaintenance(scoped);
+    try { await saveMaintenance(scoped, currentCompanyId); }
+    catch (err) { toast.error('Lỗi lưu bảo trì: ' + err.message); }
   };
 
   const setStaff = async (d) => {
-    const scopedData = d.map(x => ({
-      ...x,
-      pid: x.pid ? Number(x.pid) : x.pid,
-      companyId: superAdmin ? x.companyId : currentCompanyId,
-    }));
-
-    const merged = (superAdmin && !viewingCompany)
-      ? scopedData
-      : [
-          ...allStaff.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
-          ...scopedData,
-        ];
-
-    setAllStaff(merged);
-
-    try {
-      await saveStaff(merged);
-    } catch (err) {
-      toast.error('Lỗi lưu nhân viên: ' + err.message);
-    }
+    const scoped = scopeSave(d, true);
+    setAllStaff(scoped);
+    try { await saveStaff(scoped, currentCompanyId); }
+    catch (err) { toast.error('Lỗi lưu nhân viên: ' + err.message); }
   };
 
   const setInventory = async (d) => {
-    const scopedData = d.map(x => addCompanyId({
-      ...x,
-      pid: x.pid ? Number(x.pid) : x.pid,
-    }));
-
-    const merged = (superAdmin && !viewingCompany)
-      ? scopedData
-      : [
-          ...allInventory.filter(x => String(x.companyId || '') !== String(currentCompanyId || '')),
-          ...scopedData,
-        ];
-
-    setAllInventory(merged);
-
-    try {
-      await saveInventory(merged);
+    const scoped = scopeSave(d, true);
+    setAllInventory(scoped);
+    try { await saveInventory(scoped, currentCompanyId);
     } catch (err) {
       toast.error('Lỗi lưu kho vật tư: ' + err.message);
     }
@@ -345,8 +301,8 @@ export default function App() {
             properties={properties}
             aircons={allAircons}
             acHistory={allAcHistory}
-            onSaveAircons={async (d) => { setAllAircons(d); try { await saveAircons(d); } catch(e) { console.error(e); } }}
-            onSaveHistory={async (d) => { setAllAcHistory(d); try { await saveAcHistory(d); } catch(e) { console.error(e); } }}
+            onSaveAircons={async (d) => { setAllAircons(d); try { await saveAircons(d, currentCompanyId); } catch(e) { console.error(e); } }}
+            onSaveHistory={async (d) => { setAllAcHistory(d); try { await saveAcHistory(d, currentCompanyId); } catch(e) { console.error(e); } }}
           />
         );
 
