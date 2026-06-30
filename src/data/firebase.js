@@ -109,7 +109,12 @@ async function saveCollection(name, data = [], companyId = null) {
         batch.delete(doc(db, name, op.id));
       } else {
         const id = String(op.item.id || crypto.randomUUID());
-        batch.set(doc(db, name, id), { ...op.item, id });
+        const raw = { ...op.item, id };
+        // Strip undefined values — Firestore rejects them
+        const clean = Object.fromEntries(
+          Object.entries(raw).filter(([, v]) => v !== undefined)
+        );
+        batch.set(doc(db, name, id), clean);
       }
     }
     await batch.commit();

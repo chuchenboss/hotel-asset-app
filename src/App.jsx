@@ -215,7 +215,7 @@ export default function App() {
   };
 
   const setStaff = async (d) => {
-    const scoped = scopeSave(d, true);
+    const scoped = scopeSave(d, false); // staff has no pid field
     setAllStaff(scoped);
     try { await saveStaff(scoped, currentCompanyId); }
     catch (err) { toast.error('Lỗi lưu nhân viên: ' + err.message); }
