@@ -4,6 +4,7 @@ import { Modal, Field, PropFilterBar, StatusChip, formatVND } from '../component
 import { CATEGORIES, STATUSES } from '../data/store.js';
 import { uploadAssetImage } from '../data/firebase.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { useToast } from '../components/Toast.jsx';
 
 function ImagePreview({ images = [] }) {
   if (!images || images.length === 0) return null;
@@ -31,6 +32,7 @@ function ImagePreview({ images = [] }) {
 
 function AssetForm({ initial, properties, onSave, onClose }) {
   const { t } = useTranslation();
+  const toast = useToast();
 
   const [form, setForm] = useState(initial || {
     pid: properties[0]?.id || '',
@@ -54,7 +56,7 @@ function AssetForm({ initial, properties, onSave, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
-    if (!form.name) return alert(t('common.name') + '?');
+    if (!form.name) return toast.error(t('common.name') + '?');
 
     try {
       setSaving(true);
@@ -87,7 +89,7 @@ function AssetForm({ initial, properties, onSave, onClose }) {
       });
     } catch (err) {
       console.error('Upload image error:', err);
-      alert('Lỗi upload hình: ' + err.message);
+      toast.error('Lỗi upload hình: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -470,7 +472,7 @@ export default function Assets({ properties, assets, setAssets, initialPropId })
                             fontWeight: 500
                           }}
                         >
-                          {p.city}
+                          {p.name || p.city}
                         </span>
                       )}
                     </td>

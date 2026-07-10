@@ -243,9 +243,11 @@ export default function Sidebar({
                 <span>{t(item.key)}</span>
               </div>
             ))}
-            <div className="bottom-nav-item" onClick={() => onNavigate('settings')}>
-              <Settings /><span>{t('nav.settings')}</span>
-            </div>
+            {canAccess('settings', currentUser) && (
+              <div className={`bottom-nav-item ${page === 'settings' ? 'active' : ''}`} onClick={() => onNavigate('settings')}>
+                <Settings /><span>{t('nav.settings')}</span>
+              </div>
+            )}
           </>
         )}
       </nav>

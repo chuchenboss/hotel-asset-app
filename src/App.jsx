@@ -207,8 +207,13 @@ export default function App() {
   };
 
   // Generic scoped save: tags each item with companyId, saves only this company's data
+  // numericPid: convert pid to Number, but only if pid is not null/undefined (avoids Firestore undefined error)
   const scopeSave = (items, numericPid = false) =>
-    items.map(x => addCompanyId(numericPid ? { ...x, pid: x.pid ? Number(x.pid) : x.pid } : x));
+    items.map(x => addCompanyId(
+      numericPid
+        ? { ...x, ...(x.pid != null ? { pid: Number(x.pid) } : {}) }
+        : x
+    ));
 
   const setProperties = async (d) => {
     const scoped = scopeSave(d);
@@ -318,8 +323,8 @@ export default function App() {
             properties={properties}
             aircons={allAircons}
             acHistory={allAcHistory}
-            onSaveAircons={async (d) => { setAllAircons(d); try { await saveAircons(d, currentCompanyId); } catch(e) { console.error(e); } }}
-            onSaveHistory={async (d) => { setAllAcHistory(d); try { await saveAcHistory(d, currentCompanyId); } catch(e) { console.error(e); } }}
+            onSaveAircons={async (d) => { setAllAircons(d); try { await saveAircons(d, currentCompanyId); } catch(e) { toast.error('Lỗi lưu máy lạnh: ' + e.message); } }}
+            onSaveHistory={async (d) => { setAllAcHistory(d); try { await saveAcHistory(d, currentCompanyId); } catch(e) { toast.error('Lỗi lưu lịch sử bảo trì: ' + e.message); } }}
           />
         );
 

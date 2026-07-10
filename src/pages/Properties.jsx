@@ -4,15 +4,17 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Modal, Field, formatVND } from '../components/UI.jsx';
 import { HOTEL_TYPES, PROP_COLORS } from '../data/store.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { useToast } from '../components/Toast.jsx';
 
 function PropForm({ initial, onSave, onClose }) {
   const { t } = useTranslation();
+  const toast = useToast();
   const [form, setForm] = useState(initial || { name: '', city: '', type: '5 sao', addr: '', manager: '', phone: '', color: PROP_COLORS[0] });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   return (
     <Modal title={initial?.id ? t('properties.edit') : t('properties.add')} onClose={onClose} footer={<>
       <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-      <button className="btn btn-primary" onClick={() => { if (!form.name || !form.city) return alert(t('properties.namePlaceholder')); onSave(form); }}>{t('common.save')}</button>
+      <button className="btn btn-primary" onClick={() => { if (!form.name || !form.city) return toast.error(t('properties.namePlaceholder')); onSave(form); }}>{t('common.save')}</button>
     </>}>
       <Field label="Tên cơ sở *"><input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="VD: Grand Palace Đà Nẵng" /></Field>
       <div className="form-row">

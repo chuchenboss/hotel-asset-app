@@ -336,10 +336,12 @@ export default function Companies({ companies, setCompanies, allProperties, allA
   const handleSave = async (company, adminCreds) => {
     if (adminCreds) {
       try {
-        await createCompanyAdmin({
-          email: adminCreds.email, password: adminCreds.password,
-          name: adminCreds.name, companyId: company.id, permission: "company_admin",
-        });
+        await createCompanyAdmin(
+          company.id,
+          adminCreds.email,
+          adminCreds.password,
+          adminCreds.name,
+        );
       } catch (e) {
         if (!e.message.includes("already")) throw e;
       }

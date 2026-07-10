@@ -5,6 +5,7 @@ import { Modal, Field, PropFilterBar, UrgencyChip, StatusChip, formatVND } from 
 import { URGENCIES, MAINT_STATUSES, ROLES } from '../data/store.js';
 import { createStaffAccount } from '../data/firebase.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { useToast, useConfirm } from '../components/Toast.jsx';
 
 const PERMISSION_OPTIONS = [
   { value: 'super_admin', label: 'Super Admin - Chủ nền tảng' },
@@ -31,6 +32,7 @@ function checkCanManageStaff(user) {
 
 function MaintForm({ initial, properties, assets, onSave, onClose }) {
   const { t } = useTranslation();
+  const toast = useToast();
 
   const [form, setForm] = useState(initial || {
     pid: properties[0]?.id || '',
@@ -51,7 +53,7 @@ function MaintForm({ initial, properties, assets, onSave, onClose }) {
   );
 
   const save = () => {
-    if (!form.assetName) return alert(t('maintenance.selectAsset'));
+    if (!form.assetName) return toast.error(t('maintenance.selectAsset'));
 
     onSave({
       ...form,
@@ -474,6 +476,7 @@ export function Depreciation({ properties, assets }) {
 
 function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
   const { t } = useTranslation();
+  const toast = useToast();
 
   const isSuperAdmin = checkSuperAdmin(currentUser);
   const isCompanyAdmin = checkCompanyAdmin(currentUser);
@@ -525,15 +528,15 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
   };
 
   const save = async () => {
-    if (!form.name.trim()) return alert('Nhập họ tên');
-    if (!form.email.trim()) return alert('Nhập email');
+    if (!form.name.trim()) return toast.error('Nhập họ tên');
+    if (!form.email.trim()) return toast.error('Nhập email');
 
     if (!initial?.id && (!password || password.length < 6)) {
-      return alert('Mật khẩu đăng nhập phải từ 6 ký tự');
+      return toast.error('Mật khẩu đăng nhập phải từ 6 ký tự');
     }
 
     if (!isSuperAdmin && !isCompanyAdmin) {
-      return alert('Bạn không có quyền phân quyền nhân viên');
+      return toast.error('Bạn không có quyền phân quyền nhân viên');
     }
 
     const clean = {
@@ -550,14 +553,14 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
     delete clean.pid;
 
     if (!clean.companyId) {
-      return alert('Thiếu Company ID');
+      return toast.error('Thiếu Company ID');
     }
 
     if (
       !isSuperAdmin &&
       ['super_admin', 'company_admin', 'admin'].includes(clean.permission)
     ) {
-      return alert('Bạn không được cấp quyền này');
+      return toast.error('Bạn không được cấp quyền này');
     }
 
     await onSave(clean, password);
@@ -714,6 +717,8 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
 
 export function Staff({ properties, staff, setStaff, currentUser }) {
   const { t } = useTranslation();
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [selProp, setSelProp] = useState('all');
   const [showForm, setShowForm] = useState(false);
@@ -784,7 +789,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
       setShowForm(false);
       setEditing(null);
     } catch (err) {
-      alert('Lỗi lưu nhân viên: ' + err.message);
+      toast.error('Lỗi lưu nhân viên: ' + err.message);
     }
   };
 
@@ -931,13 +936,18 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
                             <button
                               className="btn btn-sm btn-icon btn-danger"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (s.permission === 'super_admin' && !isSuperAdmin) {
-                                  return alert('Không được xoá super admin');
+                                  return toast.error('Không được xoá Super Admin');
                                 }
-
-                                if (window.confirm(s.name + ' - Xoá nhân viên này?')) {
-                                  setStaff(staff.filter(x => x.id !== s.id));
+                                const ok = await confirm(`Xoá nhân viên "${s.name}"? Không thể hoàn tác.`);
+                                if (ok) {
+                                  try {
+                                    await setStaff(staff.filter(x => x.id !== s.id));
+                                    toast.success('Đã xoá nhân viên');
+                                  } catch(err) {
+                                    toast.error('Lỗi xoá nhân viên: ' + err.message);
+                                  }
                                 }
                               }}
                             >
@@ -984,6 +994,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
 
 function InventoryForm({ initial, properties, onSave, onClose }) {
   const { t } = useTranslation();
+  const toast = useToast();
 
   const [form, setForm] = useState(initial || {
     pid: properties[0]?.id || '',
@@ -1012,7 +1023,7 @@ function InventoryForm({ initial, properties, onSave, onClose }) {
   ];
 
   const save = () => {
-    if (!form.name) return alert('Nhập tên vật tư');
+    if (!form.name) return toast.error('Nhập tên vật tư');
 
     const clean = {
       ...form,
@@ -1230,22 +1241,4 @@ export function Inventory({ properties, inventory, setInventory }) {
         >
           <InventoryForm
             initial={modal === 'add' ? null : modal}
-            properties={properties}
-            onSave={save}
-            onClose={() => setModal(null)}
-          />
-        </Modal>
-      )}
-
-      {confirmId && (
-        <Modal title={t('common.confirm')} onClose={() => setConfirmId(null)}>
-          <p style={{ marginBottom: 16 }}>{t('inventory.delete')}</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => remove(confirmId)}>{t('common.delete')}</button>
-            <button className="btn" onClick={() => setConfirmId(null)}>{t('common.cancel')}</button>
-          </div>
-        </Modal>
-      )}
-    </div>
-  );
-}
+            properties

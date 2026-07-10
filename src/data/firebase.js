@@ -121,13 +121,18 @@ async function saveCollection(name, data = [], companyId = null) {
   }
 }
 
+/** Strip undefined values — Firestore rejects them */
+function stripUndefined(obj) {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
+}
+
 /**
  * saveSingleDoc — upsert one document by ID.
  * Use this for add/edit of a single record instead of rewriting the whole collection.
  */
 export async function saveSingleDoc(collectionName, item) {
   const id = String(item.id || crypto.randomUUID());
-  await setDoc(doc(db, collectionName, id), { ...item, id });
+  await setDoc(doc(db, collectionName, id), stripUndefined({ ...item, id }));
   return id;
 }
 
@@ -239,13 +244,13 @@ export async function createStaffAccount(staffData, password) {
   );
   const uid = userCredential.user.uid;
 
-  await setDoc(doc(db, "staff", uid), {
+  await setDoc(doc(db, "staff", uid), stripUndefined({
     ...staffData,
     id:        uid,
     email:     cleanEmail,
     companyId: String(staffData.companyId || "").trim(),
     createdAt: Date.now(),
-  });
+  }));
 
   await signOut(secondaryAuth);
   return uid;

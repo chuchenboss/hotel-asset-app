@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RotateCcw, CheckCircle } from 'lucide-react';
 import { Modal, Field } from '../components/UI.jsx';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { useToast } from '../components/Toast.jsx';
 
 const CYCLES = [1, 2, 3, 6, 12];
 
@@ -40,6 +41,7 @@ function fmtDate(dateStr, lang) {
 // ---- AC FORM ----
 function AcForm({ initial, properties, onSave, onClose }) {
   const { t, lang } = useTranslation();
+  const toast = useToast();
   const BRANDS = ['Daikin','Mitsubishi','Panasonic','LG','Samsung','Carrier','Trane','Khác / Other'];
   const CAPS   = ['1HP','1.5HP','2HP','2.5HP','3HP','5HP','Trung tâm / Central'];
 
@@ -63,7 +65,7 @@ function AcForm({ initial, properties, onSave, onClose }) {
   return (
     <Modal title={initial?.id ? t('aircon.edit') : t('aircon.add')} onClose={onClose} footer={<>
       <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-      <button className="btn btn-primary" onClick={() => { if (!form.room) return alert(t('common.location')); onSave(form); }}>{t('common.save')}</button>
+      <button className="btn btn-primary" onClick={() => { if (!form.room) return toast.error(t('common.location')); onSave(form); }}>{t('common.save')}</button>
     </>}>
       <Field label={t('common.branch')}>
         <select className="select" value={form.pid} onChange={e => set('pid', parseInt(e.target.value))}>
@@ -126,6 +128,7 @@ function AcForm({ initial, properties, onSave, onClose }) {
 // ---- MAINTENANCE LOG FORM ----
 function MaintLogForm({ ac, onSave, onClose }) {
   const { t, lang } = useTranslation();
+  const toast = useToast();
   const MAINT_TYPES_VI = ['Vệ sinh lọc gió','Vệ sinh toàn bộ','Nạp gas','Thay linh kiện','Sửa chữa','Kiểm tra định kỳ'];
   const MAINT_TYPES_EN = ['Clean Air Filter','Full Cleaning','Refill Refrigerant','Replace Parts','Repair','Routine Inspection'];
   const TYPES = lang === 'en' ? MAINT_TYPES_EN : MAINT_TYPES_VI;
@@ -139,7 +142,7 @@ function MaintLogForm({ ac, onSave, onClose }) {
   return (
     <Modal title={`${t('aircon.logTitle')} — ${ac.room}`} onClose={onClose} footer={<>
       <button className="btn" onClick={onClose}>{t('common.cancel')}</button>
-      <button className="btn btn-primary" onClick={() => { if (!form.tech) return alert(t('maintenance.technician')); onSave(form); }}>
+      <button className="btn btn-primary" onClick={() => { if (!form.tech) return toast.error(t('maintenance.technician')); onSave(form); }}>
         <CheckCircle size={13}/> {t('aircon.confirmLog')}
       </button>
     </>}>
@@ -252,6 +255,7 @@ const DEFAULT_HISTORY = [
 // ---- MAIN COMPONENT ----
 export default function AirCon({ properties, aircons: airconsProp, acHistory: acHistoryProp, onSaveAircons, onSaveHistory }) {
   const { t, lang } = useTranslation();
+  const toast = useToast();
 
   // Use Firebase data if available, fall back to localStorage for first load
   const [acs, setAcs] = useState(() => {
@@ -339,7 +343,7 @@ export default function AirCon({ properties, aircons: airconsProp, acHistory: ac
     setLogging(null);
     if (detail) setDetail({ ...detail, lastMaint: form.date, status: 'Hoạt động' });
     const nextDate = addMonths(form.date, ac.cycle);
-    alert(`✓ ${lang==='en'?'Maintenance logged!':'Đã ghi nhận bảo trì!'}\n${t('aircon.nextAuto')}: ${fmtDate(nextDate, lang)}`);
+    toast.success(`✓ ${lang==='en'?'Maintenance logged!':'Đã ghi nhận bảo trì!'} — ${t('aircon.nextAuto')}: ${fmtDate(nextDate, lang)}`);
   };
 
   const MONTH_NAMES_VI = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6','Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
