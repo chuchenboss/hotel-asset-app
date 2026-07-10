@@ -80,7 +80,7 @@ export default function Sidebar({
   const brandSub   = inCompanyView ? viewingCompany.id   : (isSuperAdmin ? 'Platform Admin' : (settings.companyTagline || 'Asset Management SaaS'));
   const brandLetter= (brandName || 'A').slice(0, 1).toUpperCase();
 
-  const handleNav = id => { onNavigate(id); onCloseMobile?.(); };
+  const handleNav = (id, propId = null) => { onNavigate(id, propId); onCloseMobile?.(); };
 
   // Platform view: Super Admin not yet entered a company → CMS only
   const isPlatformView = isSuperAdmin && !inCompanyView;
@@ -194,7 +194,7 @@ export default function Sidebar({
           <div className="sidebar-props">
             <div className="sidebar-props-label">{t('nav.branches')}</div>
             {properties.map(p => (
-              <div key={p.id} className="prop-nav-item" onClick={() => handleNav('assets')}>
+              <div key={p.id} className="prop-nav-item" onClick={() => handleNav('assets', p.id)}>
                 <div className="prop-dot" style={{ background: p.color }} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                   {p.name || p.city}

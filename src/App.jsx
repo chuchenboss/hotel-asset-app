@@ -100,10 +100,10 @@ export default function App() {
           getAcHistory(scopedCompanyId),
         ]);
         setAllProperties(p || []);
-        setAllAssets((a || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        setAllAssets((a || []).map(x => ({ ...x, ...(x.pid != null ? { pid: Number(x.pid) } : {}) })));
         setAllMaintenance(m || []);
-        setAllStaff((s || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
-        setAllInventory((i || []).map(x => ({ ...x, pid: x.pid ? Number(x.pid) : x.pid })));
+        setAllStaff(s || []);
+        setAllInventory((i || []).map(x => ({ ...x, ...(x.pid != null ? { pid: Number(x.pid) } : {}) })));
         setAllAircons(ac || []);
         setAllAcHistory(ach || []);
       } else {
