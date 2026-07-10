@@ -426,7 +426,7 @@ export function Depreciation({ properties, assets }) {
                     <td>
                       {p && (
                         <span style={{ fontSize: 11, padding: '2px 7px', borderRadius: 20, background: p.color + '22', color: p.color, fontWeight: 500 }}>
-                          {p.city}
+                          {p.name || p.city}
                         </span>
                       )}
                     </td>
@@ -484,8 +484,19 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
         ['manager', 'staff', 'viewer'].includes(p.value)
       );
 
-  const [form, setForm] = useState(initial || {
-    pid: properties[0]?.id || '',
+  // Normalize: old `pid` → `pids` array for backward compat
+  const normalizePids = (s) => {
+    if (!s) return [];
+    if (s.pids?.length) return s.pids.map(Number);
+    if (s.pid != null) return [Number(s.pid)];
+    return [];
+  };
+
+  const [form, setForm] = useState(initial ? {
+    ...initial,
+    pids: normalizePids(initial),
+  } : {
+    pids: [],
     name: '',
     role: 'Nhân viên',
     dept: '',
@@ -495,6 +506,14 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
     companyId: currentUser?.companyId || '',
     isSuperAdmin: false,
   });
+
+  const togglePid = (id) => {
+    const num = Number(id);
+    setForm(f => ({
+      ...f,
+      pids: f.pids?.includes(num) ? f.pids.filter(p => p !== num) : [...(f.pids || []), num],
+    }));
+  };
 
   const [password, setPassword] = useState('');
 
@@ -526,11 +545,9 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
       isSuperAdmin: form.permission === 'super_admin',
     };
 
-    if (form.pid) {
-      clean.pid = Number(form.pid);
-    } else {
-      delete clean.pid;
-    }
+    // Save pids array; remove legacy pid field
+    clean.pids = (form.pids || []).map(Number);
+    delete clean.pid;
 
     if (!clean.companyId) {
       return alert('Thiếu Company ID');
@@ -558,19 +575,29 @@ function StaffForm({ initial, properties, onSave, onClose, currentUser }) {
         />
       </Field>
 
-      <Field label={t('common.branch')}>
-        <select
-          className="select"
-          value={form.pid || ''}
-          onChange={e => set('pid', e.target.value)}
-        >
-          <option value="">Không chọn cơ sở</option>
+      <Field label="Cơ sở được phân công">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '4px 0' }}>
+          {properties.length === 0 && (
+            <span style={{ fontSize: 12, color: 'var(--text3)' }}>Chưa có cơ sở nào</span>
+          )}
           {properties.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
+            <label key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13 }}>
+              <input
+                type="checkbox"
+                checked={form.pids?.includes(Number(p.id)) || false}
+                onChange={() => togglePid(p.id)}
+                style={{ width: 15, height: 15, cursor: 'pointer' }}
+              />
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: p.color || '#ccc', flexShrink: 0 }} />
+              {p.name || p.city}
+            </label>
           ))}
-        </select>
+          {form.pids?.length === 0 && (
+            <span style={{ fontSize: 11, color: 'var(--text3)' }}>
+              ⚠ Không chọn = Admin/Manager xem tất cả; Staff/Viewer không thấy data nào
+            </span>
+          )}
+        </div>
       </Field>
 
       <Field label="Họ tên">
@@ -699,9 +726,16 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
     ? staff
     : staff.filter(s => s.companyId === currentUser?.companyId);
 
+  // Normalize pids for backward compat (old records may have single `pid`)
+  const getStaffPids = (s) => {
+    if (s.pids?.length) return s.pids.map(Number);
+    if (s.pid != null) return [Number(s.pid)];
+    return [];
+  };
+
   const filtered = selProp === 'all'
     ? visibleStaff
-    : visibleStaff.filter(s => Number(s.pid) === Number(selProp));
+    : visibleStaff.filter(s => getStaffPids(s).includes(Number(selProp)));
 
   const handleSave = async (form, password) => {
     try {
@@ -715,11 +749,8 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
           isSuperAdmin: form.permission === 'super_admin',
         };
 
-        if (form.pid) {
-          clean.pid = Number(form.pid);
-        } else {
-          delete clean.pid;
-        }
+        clean.pids = (form.pids || []).map(Number);
+        delete clean.pid;
 
         await setStaff(
           staff.map(s =>
@@ -735,11 +766,8 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
           isSuperAdmin: form.permission === 'super_admin',
         };
 
-        if (form.pid) {
-          clean.pid = Number(form.pid);
-        } else {
-          delete clean.pid;
-        }
+        clean.pids = (form.pids || []).map(Number);
+        delete clean.pid;
 
         const uid = await createStaffAccount(clean, password);
 
@@ -849,7 +877,8 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                 </tr>
               ) : (
                 filtered.map(s => {
-                  const p = properties.find(x => Number(x.id) === Number(s.pid));
+                  const staffPids = getStaffPids(s);
+                  const branches = staffPids.map(pid => properties.find(x => Number(x.id) === pid)).filter(Boolean);
 
                   return (
                     <tr key={s.id}>
@@ -857,7 +886,19 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                         {s.companyId || '—'}
                       </td>
 
-                      <td>{p?.city || p?.name || '—'}</td>
+                      <td>
+                        {branches.length === 0 ? (
+                          <span style={{ color: 'var(--text3)', fontSize: 12 }}>—</span>
+                        ) : (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                            {branches.map(b => (
+                              <span key={b.id} style={{ fontSize: 11, padding: '1px 7px', borderRadius: 20, background: (b.color || '#ccc') + '22', color: b.color || '#666', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                                {b.name || b.city}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
                       <td>{s.name}</td>
                       <td>{s.role}</td>
                       <td>{s.dept}</td>

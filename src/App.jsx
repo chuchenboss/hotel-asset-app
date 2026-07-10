@@ -158,13 +158,30 @@ export default function App() {
     String(s.email || '').toLowerCase() === String(user?.email || '').toLowerCase()
   );
 
-  // Data is already scoped by Firestore query — no client-side filter needed
-  // For super admin in company view, data was loaded for that company
-  const properties = allProperties;
-  const assets     = allAssets;
-  const maintenance= allMaintenance;
-  const staff      = allStaff;
-  const inventory  = allInventory;
+  // Branch-level visibility: admin/manager see all; staff/viewer only see assigned branches
+  const userAllowedPids = (() => {
+    if (superAdmin || !currentUser) return null; // see all
+    const highPerm = ['company_admin', 'admin', 'manager'].includes(currentUser.permission);
+    if (highPerm) return null; // see all within company
+    // Normalize: new `pids[]` or legacy `pid`
+    if (currentUser.pids?.length) return currentUser.pids.map(Number);
+    if (currentUser.pid != null) return [Number(currentUser.pid)];
+    return []; // staff with no assignment sees nothing
+  })();
+
+  const properties  = userAllowedPids
+    ? allProperties.filter(p => userAllowedPids.includes(Number(p.id)))
+    : allProperties;
+  const assets      = userAllowedPids
+    ? allAssets.filter(a => a.pid != null && userAllowedPids.includes(Number(a.pid)))
+    : allAssets;
+  const maintenance = userAllowedPids
+    ? allMaintenance.filter(m => m.pid != null && userAllowedPids.includes(Number(m.pid)))
+    : allMaintenance;
+  const staff       = allStaff;
+  const inventory   = userAllowedPids
+    ? allInventory.filter(i => i.pid != null && userAllowedPids.includes(Number(i.pid)))
+    : allInventory;
 
   // When super admin enters a company: load that company's data
   const handleEnterCompany = async (company) => {
