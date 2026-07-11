@@ -357,10 +357,11 @@ export default function Companies({ companies, setCompanies, allProperties, allA
   };
 
   const handleDelete = async (company) => {
-    const ok = await confirm(
-      en ? `Delete "${company.name}"? This cannot be undone.`
-         : `Xoá công ty "${company.name}"? Không thể hoàn tác.`
-    );
+    const ok = await confirm({
+      message: en ? `Delete "${company.name}"? This cannot be undone.` : `Xoá công ty "${company.name}"? Không thể hoàn tác.`,
+      title: en ? 'Confirm Delete' : 'Xác nhận xoá',
+      danger: true,
+    });
     if (!ok) return;
     await setCompanies(companies.filter(c => c.id !== company.id));
     toast.success(en ? "Company deleted" : "Đã xoá công ty");

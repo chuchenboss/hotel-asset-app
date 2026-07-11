@@ -5,11 +5,13 @@ import { useState } from 'react';
 import { Save, Mail, Send, Check, AlertTriangle } from 'lucide-react';
 import { saveEmailConfig, sendMaintenanceAlert } from '../services/emailNotification.js';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { useToast } from './Toast.jsx';
 
 const DEFAULT_CONFIG = { publicKey: '', serviceId: '', templateId: '', testEmail: '' };
 
 export default function NotificationSettings({ maintenance, properties, staff }) {
   const { lang } = useTranslation();
+  const toast = useToast();
 
   const [config, setConfig] = useState(() => {
     try { return { ...DEFAULT_CONFIG, ...JSON.parse(localStorage.getItem('email_config')||'{}') }; }
@@ -39,8 +41,8 @@ export default function NotificationSettings({ maintenance, properties, staff })
   };
 
   const handleTest = async () => {
-    if (!config.testEmail) return alert('Nhập email để test!');
-    if (!isConfigured) return alert('Vui lòng điền đủ Public Key, Service ID và Template ID trước!');
+    if (!config.testEmail) return toast.error('Nhập email để test!');
+    if (!isConfigured) return toast.error('Vui lòng điền đủ Public Key, Service ID và Template ID trước!');
     setTesting(true); setTestMsg(null);
     try {
       await sendMaintenanceAlert({
@@ -61,8 +63,8 @@ export default function NotificationSettings({ maintenance, properties, staff })
   };
 
   const handleSendAlerts = async () => {
-    if (!isConfigured) return alert('Vui lòng cài đặt EmailJS trước!');
-    if (alertCount === 0) return alert('Không có bảo trì nào cần thông báo lúc này.');
+    if (!isConfigured) return toast.error('Vui lòng cài đặt EmailJS trước!');
+    if (alertCount === 0) return toast.info('Không có bảo trì nào cần thông báo lúc này.');
     setSending(true); setSendResult(null);
     const { sendBulkAlerts } = await import('../services/emailNotification.js');
     const result = await sendBulkAlerts(maintenance, properties, staff);

@@ -54,7 +54,7 @@ export function PropFilterBar({ props, selected, onSelect }) {
           className={`prop-filter-btn ${selected === p.id ? 'active' : ''}`}
           style={selected === p.id ? { background: p.color } : {}}
           onClick={() => onSelect(p.id)}
-        >{p.city}</button>
+        >{p.name || p.city}</button>
       ))}
     </div>
   );
@@ -77,7 +77,7 @@ export function Avatar({ name, color = '#1D9E75', size = 30 }) {
 }
 
 export function DepreciationBar({ year, lifespan }) {
-  const used = 2026 - year;
+  const used = new Date().getFullYear() - year;
   const pct = Math.min(100, Math.round(used / lifespan * 100));
   const color = pct >= 100 ? '#E24B4A' : pct >= 80 ? '#EF9F27' : '#1D9E75';
   const label = pct >= 100 ? 'Đã hết' : pct >= 80 ? 'Sắp hết' : 'Còn hạn';

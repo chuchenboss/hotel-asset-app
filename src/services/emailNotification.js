@@ -91,8 +91,13 @@ export async function sendBulkAlerts(maintenance, properties, staff) {
   const results = { sent: 0, errors: [] };
   for (const m of toAlert) {
     const p = properties.find(x => x.id === m.pid);
-    // Gửi cho tất cả manager của cơ sở đó
-    const managers = staff.filter(s => s.pid === m.pid && (s.permission === 'admin' || s.permission === 'manager') && s.email);
+    // Gửi cho tất cả manager của cơ sở đó (hỗ trợ cả pids[] và pid cũ)
+    const managers = staff.filter(s => {
+      const staffPids = s.pids?.length ? s.pids.map(Number) : (s.pid != null ? [Number(s.pid)] : []);
+      return staffPids.includes(Number(m.pid)) &&
+        (s.permission === 'admin' || s.permission === 'manager') &&
+        s.email;
+    });
     for (const mgr of managers) {
       try {
         await sendMaintenanceAlert({

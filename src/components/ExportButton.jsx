@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { Download, FileSpreadsheet, ChevronDown } from 'lucide-react';
 import { useTranslation } from '../i18n/useTranslation.jsx';
+import { useToast } from './Toast.jsx';
 
 // ---- HELPER: tạo workbook từ dữ liệu ----
 function buildWorkbook(properties, assets, maintenance, inventory, staff) {
@@ -34,9 +35,9 @@ function buildWorkbook(properties, assets, maintenance, inventory, staff) {
     ['Mã TS', 'Tên tài sản', 'Cơ sở', 'Danh mục', 'Giá trị (VNĐ)', 'Năm mua', 'Thời hạn SD', 'Vị trí', 'Trạng thái', 'Ghi chú']
   ];
   assets.forEach(a => {
-    const p = properties.find(x=>x.id===a.pid);
+    const p = properties.find(x=>Number(x.id)===Number(a.pid));
     assetRows.push([
-      a.code||'', a.name||'', p?.name||'', a.category||'',
+      a.code||'', a.name||'', p?.name||p?.city||'', a.category||'',
       a.value||0, a.year||'', a.lifespan||'', a.location||'',
       a.status||'', a.note||''
     ]);
@@ -50,9 +51,9 @@ function buildWorkbook(properties, assets, maintenance, inventory, staff) {
     ['Cơ sở', 'Tài sản', 'Nội dung', 'Ngày', 'Kỹ thuật viên', 'Chi phí (VNĐ)', 'Mức độ', 'Trạng thái']
   ];
   maintenance.forEach(m => {
-    const p = properties.find(x=>x.id===m.pid);
+    const p = properties.find(x=>Number(x.id)===Number(m.pid));
     maintRows.push([
-      p?.name||'', m.assetName||'', m.type||'',
+      p?.name||p?.city||'', m.assetName||'', m.type||'',
       m.date||'', m.tech||'', m.cost||0,
       m.urgency||'', m.status||''
     ]);
@@ -66,7 +67,7 @@ function buildWorkbook(properties, assets, maintenance, inventory, staff) {
     ['Mã VT', 'Tên vật tư', 'Cơ sở', 'Danh mục', 'Tồn kho', 'Định mức', 'Đơn vị', 'Đơn giá (VNĐ)', 'Tổng giá trị']
   ];
   inventory.forEach(i => {
-    const p = properties.find(x=>x.id===i.pid);
+    const p = properties.find(x=>Number(x.id)===Number(i.pid));
     invRows.push([
       i.code||'', i.name||'', p?.name||'', i.category||'',
       i.qty||0, i.minQty||0, i.unit||'', i.price||0,
@@ -82,9 +83,10 @@ function buildWorkbook(properties, assets, maintenance, inventory, staff) {
     ['Họ tên', 'Cơ sở', 'Vai trò', 'Bộ phận', 'Email', 'Phân quyền', 'Trạng thái']
   ];
   staff.forEach(s => {
-    const p = properties.find(x=>x.id===s.pid);
+    const staffPids = s.pids?.length ? s.pids.map(Number) : (s.pid != null ? [Number(s.pid)] : []);
+    const branchNames = staffPids.map(pid => { const p = properties.find(x=>Number(x.id)===pid); return p?.name||p?.city||''; }).filter(Boolean).join(', ');
     staffRows.push([
-      s.name||'', p?.name||'', s.role||'', s.dept||'',
+      s.name||'', branchNames||'', s.role||'', s.dept||'',
       s.email||'', s.permission||'', s.status||''
     ]);
   });
@@ -97,8 +99,8 @@ function buildWorkbook(properties, assets, maintenance, inventory, staff) {
     ['Tài sản', 'Cơ sở', 'Nguyên giá (VNĐ)', 'Năm mua', 'Thời hạn SD', 'Đã dùng (năm)', 'Còn lại (năm)', '% Khấu hao', 'Tình trạng']
   ];
   assets.forEach(a => {
-    const p    = properties.find(x=>x.id===a.pid);
-    const used = 2026 - (a.year||2020);
+    const p    = properties.find(x=>Number(x.id)===Number(a.pid));
+    const used = new Date().getFullYear() - (a.year||new Date().getFullYear());
     const pct  = Math.min(100, Math.round(used/(a.lifespan||10)*100));
     const rem  = Math.max(0, (a.lifespan||10) - used);
     const cond = pct>=100?'Đã hết':pct>=80?'Sắp hết':'Còn hạn';
@@ -112,9 +114,9 @@ function buildWorkbook(properties, assets, maintenance, inventory, staff) {
 }
 
 // ---- Xuất Excel ----
-function exportExcel(properties, assets, maintenance, inventory, staff, companyName) {
+function exportExcel(properties, assets, maintenance, inventory, staff, companyName, toast) {
   const XLSX = window.XLSX;
-  if (!XLSX) { alert('Đang tải thư viện Excel, vui lòng thử lại sau 2 giây...'); return; }
+  if (!XLSX) { toast.warning('Đang tải thư viện Excel, vui lòng thử lại sau 2 giây...'); return; }
   const wb       = buildWorkbook(properties, assets, maintenance, inventory, staff);
   const fileName = `BaoCaoTaiSan_${companyName.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.xlsx`;
   XLSX.writeFile(wb, fileName);
@@ -138,8 +140,6 @@ function exportGoogleSheets(properties, assets) {
   const a    = document.createElement('a');
   a.href = url; a.download = 'TaiSan_Import.csv'; a.click();
   URL.revokeObjectURL(url);
-  // Hướng dẫn import
-  setTimeout(() => alert('✓ File CSV đã tải về!\n\nĐể mở bằng Google Sheets:\n1. Vào drive.google.com\n2. Kéo thả file CSV vừa tải vào\n3. Double-click để mở\n4. Google tự hỏi "Mở bằng Google Sheets" → nhấn OK'), 500);
 }
 
 // ---- COMPONENT CHÍNH ----
@@ -147,17 +147,19 @@ export default function ExportButton({ properties, assets, maintenance, inventor
   const [open, setOpen]   = useState(false);
   const [loading, setLoading] = useState(false);
   const { t } = useTranslation();
+  const toast = useToast();
   const settings    = (() => { try { return JSON.parse(localStorage.getItem('app_settings')||'{}'); } catch { return {}; } })();
   const companyName = settings.companyName || 'PalaceGroup';
 
   const handleExcel = () => {
     setLoading(true); setOpen(false);
-    setTimeout(() => { exportExcel(properties, assets, maintenance, inventory, staff, companyName); setLoading(false); }, 100);
+    setTimeout(() => { exportExcel(properties, assets, maintenance, inventory, staff, companyName, toast); setLoading(false); }, 100);
   };
 
   const handleSheets = () => {
     setOpen(false);
     exportGoogleSheets(properties, assets);
+    toast.success('✓ File CSV đã tải về! Mở drive.google.com và kéo thả file vào để import Google Sheets.');
   };
 
   return (

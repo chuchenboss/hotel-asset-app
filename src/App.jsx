@@ -426,7 +426,7 @@ export default function App() {
       />
 
       {/* ── MAIN CONTENT ── */}
-      <div className="main-content">
+      <div className="main">
         {/* Top bar */}
         <div className="topbar">
           <button
@@ -477,7 +477,7 @@ export default function App() {
         </div>
 
         {/* Page content */}
-        <div className="page-content">
+        <div className="content">
           {renderPage()}
         </div>
       </div>

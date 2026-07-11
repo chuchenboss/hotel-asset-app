@@ -1,5 +1,5 @@
 // src/pages/AirCon.jsx
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Pencil, Trash2, ChevronLeft, ChevronRight, RotateCcw, CheckCircle } from 'lucide-react';
 import { Modal, Field } from '../components/UI.jsx';
 import { useTranslation } from '../i18n/useTranslation.jsx';
@@ -268,9 +268,9 @@ export default function AirCon({ properties, aircons: airconsProp, acHistory: ac
   });
 
   // Sync from Firebase when props update
-  useState(() => {
+  useEffect(() => {
     if (airconsProp?.length > 0) setAcs(airconsProp);
-  });
+  }, [airconsProp]);
 
   const saveAcs = d => {
     setAcs(d);

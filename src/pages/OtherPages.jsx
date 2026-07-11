@@ -940,7 +940,7 @@ export function Staff({ properties, staff, setStaff, currentUser }) {
                                 if (s.permission === 'super_admin' && !isSuperAdmin) {
                                   return toast.error('Không được xoá Super Admin');
                                 }
-                                const ok = await confirm(`Xoá nhân viên "${s.name}"? Không thể hoàn tác.`);
+                                const ok = await confirm({ message: `Xoá nhân viên "${s.name}"? Không thể hoàn tác.`, title: 'Xác nhận xoá', danger: true });
                                 if (ok) {
                                   try {
                                     await setStaff(staff.filter(x => x.id !== s.id));
@@ -1241,4 +1241,22 @@ export function Inventory({ properties, inventory, setInventory }) {
         >
           <InventoryForm
             initial={modal === 'add' ? null : modal}
-            properties
+            properties={properties}
+            onSave={save}
+            onClose={() => setModal(null)}
+          />
+        </Modal>
+      )}
+
+      {confirmId && (
+        <Modal title={t('common.confirm')} onClose={() => setConfirmId(null)}>
+          <p style={{ marginBottom: 16 }}>{t('inventory.delete')}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-danger" style={{ flex: 1 }} onClick={() => remove(confirmId)}>{t('common.delete')}</button>
+            <button className="btn" onClick={() => setConfirmId(null)}>{t('common.cancel')}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
